@@ -2,7 +2,6 @@
 Script to build the comprehensive Jupyter Notebook for Way2Agribusiness screening task.
 """
 import nbformat as nbf
-import json
 import os
 import re
 
