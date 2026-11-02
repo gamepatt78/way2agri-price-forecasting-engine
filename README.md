@@ -429,8 +429,4 @@ python ml_pipeline/train_and_forecast.py
 ---
 
 
-- **Submission Attachments:**
-  1. Master Jupyter Notebook: `notebooks/AgriPrice_Forecasting_Way2Agri.ipynb`
-  2. Executive Technical Word Document: `docs/Way2Agribusiness_Assignment_Report.docx`
-  3. GitHub Repository: `https://github.com/gamepatt78/way2agri-price-forecasting-engine`
-  4. Updated Candidate CV / Resume & Aadhaar Card Image
+
