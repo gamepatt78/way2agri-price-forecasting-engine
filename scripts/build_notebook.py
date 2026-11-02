@@ -627,23 +627,26 @@ Django serves as the robust, transactional enterprise backbone for user manageme
 ```mermaid
 flowchart TB
     subgraph clients["Clients"]
-        admin["Web browser / Admin"]
-        apps["Client applications"]
+        direction LR
+        admin["Web / Admin"]
+        apps["Other apps"]
     end
 
     subgraph django["Django application"]
-        api["Django REST Framework<br/>ViewSets and serializers"]
-        models["Business models<br/>Prices, forecasts, registry, actions"]
-        auth["Authentication, permissions,<br/>and auditing"]
+        direction LR
+        api["REST API"]
+        models["Business records"]
+        auth["Access and audit"]
     end
 
     subgraph jobs["Background tasks"]
+        direction LR
         beat["Celery Beat"]
         worker["Celery worker"]
     end
 
-    database[("PostgreSQL / SQLite<br/>Prices and business records")]
-    redis[("Redis<br/>Task queue and broker")]
+    database[("Database<br/>Prices and business data")]
+    redis[("Redis<br/>Task queue")]
 
     admin --> api
     apps --> api
@@ -684,18 +687,18 @@ cells.append(nbf.v4.new_markdown_cell("""---
 While Django manages relational data persistence, authentication, and corporate workflows, **FastAPI provides high-throughput, sub-10ms asynchronous inference**:
 
 ```mermaid
-flowchart LR
-    client["Web or mobile client"] --> proxy["NGINX reverse proxy"]
-    proxy -->|"Business API"| django["Django Core<br/>Auth, data, actions"]
-    proxy -->|"Forecast API"| fastapi["FastAPI<br/>Inference and OpenAPI"]
+flowchart TB
+    client["Web or mobile app"] --> proxy["API gateway<br/>NGINX"]
+    proxy --> django["Business API<br/>Django"]
+    proxy --> fastapi["Forecast API<br/>FastAPI"]
     django --> database[("Relational database")]
-    django --> redis[("Redis cache / task queue")]
-    fastapi --> models[("Loaded model artifacts")]
+    django --> redis[("Redis<br/>Cache / task queue")]
+    fastapi --> models[("Model files")]
 
-    classDef client fill:#e8f3ff,stroke:#3674a5,color:#17324d
+    classDef clientNode fill:#e8f3ff,stroke:#3674a5,color:#17324d
     classDef service fill:#eaf7ef,stroke:#43845b,color:#173b25
     classDef store fill:#f2ecff,stroke:#7656a8,color:#30204b
-    class client client
+    class client clientNode
     class proxy,django,fastapi service
     class database,redis,models store
 ```
@@ -739,24 +742,24 @@ In agricultural commodity pricing, model degradation occurs due to:
 1. **Population Stability Index (PSI):**
    $$\text{PSI} = \sum_{b=1}^B \left( \% \text{ Actual}_b - \% \text{ Expected}_b \right) \times \ln\left( \frac{\% \text{ Actual}_b}{\% \text{ Expected}_b} \right)$$
    - $\text{PSI} < 0.1$: No significant drift; model remains active.
-   - $0.1 \le \text{PSI} \le 0.25$: Moderate drift; warning triggered, model flagged for review.
-   - $\text{PSI} > 0.25$: Significant drift; automated retraining pipeline executed immediately.
+   - $0.1 \le \text{PSI} < 0.25$: Moderate drift; warning triggered, model flagged for review.
+   - $\text{PSI} \ge 0.25$: Significant drift; automated retraining pipeline executed immediately.
 2. **Two-Sample Kolmogorov-Smirnov (KS) Test:** Non-parametric test comparing the cumulative distribution of recent 6-month prices against the training baseline ($p < 0.05$ indicates distribution divergence).
 3. **Cumulative Holdout Error Drift:** Trigger alarm if running 3-month rolling MAPE exceeds 15%.
 
 ### 9.3 CI/CD Retraining & Safe Deployment Pipeline
 ```mermaid
 flowchart TB
-    data["New mandi data"] --> clean["Anomaly check and cleaning"]
-    clean --> drift["Calculate PSI and KS drift tests"]
-    drift --> decision{"Drift level"}
-    decision -->|"PSI < 0.10"| log["Log telemetry"]
-    decision -->|"PSI 0.10–0.25"| review["Flag for review"]
-    decision -->|"PSI > 0.25"| train["Trigger retraining"]
-    train --> candidate["Train candidate model"]
-    candidate --> benchmark["Walk-forward benchmark"]
-    benchmark --> gate{"Candidate MAPE better?"}
-    gate -->|No| keep["Keep active champion"]
+    data["New mandi data"] --> clean["Check and clean data"]
+    clean --> drift["Measure drift<br/>PSI and KS"]
+    drift --> decision{"PSI score"}
+    decision -->|"< 0.10"| log["Log telemetry"]
+    decision -->|"0.10–<0.25"| review["Review drift"]
+    decision -->|"≥ 0.25"| train["Retrain model"]
+    train --> candidate["Train candidate"]
+    candidate --> benchmark["Walk-forward test"]
+    benchmark --> gate{"Better holdout score?"}
+    gate -->|No| keep["Keep champion"]
     gate -->|Yes| canary["Canary release"]
     canary --> promote["Promote candidate"]
 

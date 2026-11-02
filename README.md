@@ -34,37 +34,41 @@ The diagram separates user-facing clients, request-handling services, scheduled 
 
 ```mermaid
 flowchart TB
-    subgraph clients["Client applications"]
-        web["Web dashboard<br/>Next.js"]
-        mobile["Field app<br/>React Native"]
+    subgraph clients["Clients"]
+        direction LR
+        web["Web<br/>Next.js"]
+        mobile["Mobile<br/>React Native"]
     end
 
-    gateway["Reverse proxy<br/>NGINX"]
+    gateway["API gateway<br/>NGINX"]
 
-    subgraph services["Application services"]
-        django["Business API<br/>Django REST Framework"]
+    subgraph services["APIs"]
+        direction LR
+        django["Business API<br/>Django"]
         fastapi["Forecast API<br/>FastAPI"]
     end
 
-    subgraph jobs["Background processing"]
+    subgraph jobs["Scheduled work"]
+        direction LR
         beat["Scheduler<br/>Celery Beat"]
-        worker["Worker<br/>Celery"]
+        worker["Task worker<br/>Celery"]
     end
 
-    subgraph data["Data and model artifacts"]
-        database[("Price and business data<br/>SQLite / PostgreSQL")]
-        redis[("Queue and cache<br/>Redis")]
-        artifacts[("Trained models<br/>.joblib / metadata")]
+    subgraph data["Storage"]
+        direction LR
+        database[("Business data<br/>SQLite / PostgreSQL")]
+        redis[("Queue / cache<br/>Redis")]
+        artifacts[("Model files<br/>Joblib / JSON")]
     end
 
     web --> gateway
     mobile --> gateway
-    gateway -->|"Business requests"| django
-    gateway -->|"Forecast requests"| fastapi
+    gateway --> django
+    gateway --> fastapi
     django --> database
-    django -->|"Enqueue background tasks"| redis
-    beat -->|"Scheduled tasks"| redis
-    redis -->|"Queued tasks"| worker
+    django --> redis
+    beat --> redis
+    redis --> worker
     worker --> database
     worker --> artifacts
     fastapi --> artifacts
@@ -146,16 +150,17 @@ The 30 prices from June 2021 to November 2023 are **not an exact match** for the
 For modeling sensitivity analysis, the notebook flags this period and interpolates its values between May 2021 and December 2023. This is a provisional scenario, not a verified correction; the raw reported prices are retained.
 
 ```mermaid
-flowchart LR
-    before["May 2021<br/>Reported: ₹10,863"] --> drop["June 2021<br/>Reported: ₹5,070"]
-    drop --> flagged["June 2021–November 2023<br/>30-month candidate period<br/>11 of 30 values differ from comparison window"]
-    flagged --> endpoint["December 2023<br/>Reported: ₹16,163"]
+flowchart TB
+    before["May 2021<br/>₹10,863"] --> drop["June 2021<br/>₹5,070"]
+    drop --> flagged["Jun 2021–Nov 2023<br/>30 months flagged"]
+    flagged --> endpoint["Dec 2023<br/>₹16,163"]
 
     classDef observed fill:#e8f3ff,stroke:#3674a5,color:#17324d
     classDef review fill:#fff4df,stroke:#b27a20,color:#4b3512
     class before,drop,endpoint observed
     class flagged review
 ```
+*Comparison check: 11 of 30 values differ from the selected historical window.*
 
 ### Statistical Treatment
 1. **Flagging:** All 30 corrupted months are tagged with `is_anomaly = True`.
@@ -185,13 +190,13 @@ To ensure mathematical validity of autoregressive modeling, we conducted Augment
 ### Multi-Paradigm Architecture Formulation
 
 ```mermaid
-flowchart LR
-    prices["Historical price series"] --> sarimax["SARIMAX<br/>Seasonal statistical model"]
-    prices --> features["Lag, rolling, and calendar features"]
-    features --> xgboost["XGBoost<br/>Recursive forecasts"]
-    sarimax --> ensemble["Equal-weight ensemble<br/>50% SARIMAX + 50% XGBoost"]
+flowchart TB
+    prices["Prices<br/>2005–2025"] --> sarimax["SARIMAX<br/>Seasonal forecast"]
+    prices --> features["Features<br/>Lags, stats, calendar"]
+    features --> xgboost["XGBoost<br/>Recursive forecast"]
+    sarimax --> ensemble["50/50 blend<br/>SARIMAX + XGBoost"]
     xgboost --> ensemble
-    ensemble --> evaluation["Holdout evaluation<br/>and forward forecast"]
+    ensemble --> evaluation["Holdout MAPE<br/>9.56%"]
 
     classDef input fill:#e8f3ff,stroke:#3674a5,color:#17324d
     classDef model fill:#eaf7ef,stroke:#43845b,color:#173b25
@@ -237,10 +242,11 @@ Trained on the complete historical timeline (2005 to September 2025), the produc
 ```mermaid
 xychart-beta
     title "Forecast price path (INR/quintal)"
-    x-axis ["Oct-25", "Nov-25", "Dec-25", "Jan-26", "Feb-26", "Mar-26", "Apr-26", "May-26", "Jun-26", "Jul-26", "Aug-26", "Sep-26"]
+    x-axis ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"]
     y-axis "INR/quintal" 14000 --> 17000
     line [15776, 15777, 15389, 15246, 14490, 15336, 15644, 15916, 15975, 16132, 15410, 16165]
 ```
+*Forecast horizon: October 2025–September 2026.*
 
 | Horizon | Target Month | Predicted Price | 95% Confidence Interval | Strategic Market Phase & Action |
 | :--- | :--- | :--- | :--- | :--- |
@@ -333,14 +339,14 @@ Implemented in `fastapi_service/main.py`:
 
 ```mermaid
 flowchart TB
-    data["New mandi data"] --> checks["Anomaly validation<br/>PSI, KS, and rolling MAPE"]
-    checks --> decision{"Drift level"}
-    decision -->|"PSI < 0.10"| stable["Log telemetry<br/>Keep current model"]
-    decision -->|"PSI 0.10–0.25"| review["Flag for review"]
-    decision -->|"PSI ≥ 0.25"| train["Trigger retraining"]
-    train --> candidate["Train candidate model"]
-    candidate --> gate{"Candidate beats<br/>champion on holdout?"}
-    gate -->|No| retain["Retain champion"]
+    data["New mandi data"] --> checks["Check anomalies and drift<br/>PSI, KS, rolling MAPE"]
+    checks --> decision{"PSI score"}
+    decision -->|"< 0.10"| stable["Log results<br/>Keep current model"]
+    decision -->|"0.10–<0.25"| review["Review drift"]
+    decision -->|"≥ 0.25"| train["Retrain model"]
+    train --> candidate["Train candidate"]
+    candidate --> gate{"Better holdout score?"}
+    gate -->|No| retain["Keep champion"]
     gate -->|Yes| canary["Canary release"]
     canary --> promote["Promote candidate"]
 
