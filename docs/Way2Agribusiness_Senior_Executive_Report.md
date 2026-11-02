@@ -9,7 +9,7 @@
 - **Workstation Office:** Yeshwanthpur Office, Bengaluru, Karnataka
 - **Official Submission Channels:** WhatsApp (+91 9449004956) & Email (way2agriintelai@gmail.com)
 - **Date of Completion:** November 02, 2026 (Submitted well before the Nov 03, 2026, 6:00 PM deadline)
-- **Codebase Repository:** `https://github.com/gamepatt78/way2agri-price-forecasting-engine-`
+- **Codebase Repository:** `https://github.com/gamepatt78/way2agri-price-forecasting-engine`
 
 ---
 
@@ -305,7 +305,7 @@ This submission provides a complete, production-grade, and mathematically rigoro
 - [x] **FastAPI Microservice:** Sub-10ms async inference engine with Swagger UI.
 - [x] **Next.js 15 Web Dashboard:** Interactive hedging simulator and curve visualization.
 - [x] **React Native Mobile App:** Offline-first procurement tool with alert triggers.
-- [x] **GitHub Repository:** `https://github.com/gamepatt78/way2agri-price-forecasting-engine-`
+- [x] **GitHub Repository:** `https://github.com/gamepatt78/way2agri-price-forecasting-engine`
 
 ---
 

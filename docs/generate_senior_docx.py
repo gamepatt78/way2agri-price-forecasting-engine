@@ -68,7 +68,7 @@ meta_data = [
     ("Workstation Location", "Yeshwanthpur Office, Bengaluru, Karnataka"),
     ("Tech Stack Assessed", "AI/ML (Time Series), Django 5, FastAPI, Next.js 15, React Native"),
     ("Submission Channels", "WhatsApp (+91 9449004956) & Email (way2agriintelai@gmail.com)"),
-    ("GitHub Repository", "https://github.com/gamepatt78/way2agri-price-forecasting-engine-")
+    ("GitHub Repository", "https://github.com/gamepatt78/way2agri-price-forecasting-engine")
 ]
 
 for i, (k, v) in enumerate(meta_data):
@@ -262,7 +262,7 @@ doc.add_paragraph(
 doc.add_heading("10. Submission Verification & Candidate Credentials", level=1)
 doc.add_paragraph(
     "The complete assignment package has been prepared and committed to GitHub:\n"
-    "• Repository: https://github.com/gamepatt78/way2agri-price-forecasting-engine-\n"
+    "• Repository: https://github.com/gamepatt78/way2agri-price-forecasting-engine\n"
     "• Executed Jupyter Notebook: notebooks/AgriPrice_Forecasting_Way2Agri.ipynb\n"
     "• Official Word Document: docs/Way2Agribusiness_Assignment_Report.docx\n"
     "• HTML Report: docs/AgriPrice_Forecasting_Way2Agri.html\n\n"
