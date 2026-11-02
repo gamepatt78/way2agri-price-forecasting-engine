@@ -394,6 +394,8 @@ Compares the empirical cumulative distribution function (eCDF) of incoming 6-mon
 
 ## Quickstart & Verification Guide
 
+For Windows PowerShell setup, notebook execution, and optional API server instructions, see [HOW_TO_RUN.md](HOW_TO_RUN.md).
+
 ### 1. View the Jupyter Notebook
 ```bash
 jupyter notebook notebooks/AgriPrice_Forecasting_Way2Agri.ipynb
@@ -425,6 +427,5 @@ python ml_pipeline/train_and_forecast.py
 ```
 
 ---
-
 
 

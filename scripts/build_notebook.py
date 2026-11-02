@@ -4,6 +4,96 @@ Script to build the comprehensive Jupyter Notebook for Way2Agribusiness screenin
 import nbformat as nbf
 import json
 import os
+import re
+
+
+def split_markdown_heading_cells(cells):
+    split_cells = []
+
+    for cell in cells:
+        if cell.cell_type != "markdown":
+            split_cells.append(cell)
+            continue
+
+        source_lines = cell.source.splitlines(keepends=True)
+        body_lines = []
+        fence_char = None
+        fence_length = 0
+
+        def append_body():
+            if body_lines and "".join(body_lines).strip():
+                split_cells.append(
+                    nbf.v4.new_markdown_cell(
+                        source="".join(body_lines).strip(),
+                        metadata=cell.metadata.copy(),
+                    )
+                )
+            body_lines.clear()
+
+        for line in source_lines:
+            fence = re.match(r"^\s*(`{3,}|~{3,})", line)
+            inside_fence = fence_char is not None
+            if inside_fence:
+                if (
+                    fence
+                    and fence.group(1)[0] == fence_char
+                    and len(fence.group(1)) >= fence_length
+                ):
+                    fence_char = None
+                    fence_length = 0
+            elif fence:
+                fence_char = fence.group(1)[0]
+                fence_length = len(fence.group(1))
+
+            if not inside_fence and re.match(r"^#{1,6}\s+", line):
+                append_body()
+                split_cells.append(
+                    nbf.v4.new_markdown_cell(
+                        source=line.strip(),
+                        metadata=cell.metadata.copy(),
+                    )
+                )
+            else:
+                body_lines.append(line)
+
+        append_body()
+
+    return split_cells
+
+
+def split_code_section_cells(cells):
+    split_cells = []
+
+    for cell in cells:
+        if cell.cell_type != "code":
+            split_cells.append(cell)
+            continue
+
+        code_lines = []
+
+        def append_code():
+            if code_lines and "".join(code_lines).strip():
+                split_cells.append(
+                    nbf.v4.new_code_cell(source="".join(code_lines).strip())
+                )
+            code_lines.clear()
+
+        for line in cell.source.splitlines(keepends=True):
+            section = re.match(r"^#\s+(.+?)\s*$", line)
+            if section:
+                append_code()
+                split_cells.append(
+                    nbf.v4.new_markdown_cell(
+                        source=f"### {section.group(1).strip()}"
+                    )
+                )
+            else:
+                code_lines.append(line)
+
+        append_code()
+
+    return split_cells
+
 
 nb = nbf.v4.new_notebook()
 nb.metadata = {
@@ -209,7 +299,7 @@ plt.show()
 """))
 
 # Cell 7: Markdown - Question 2 Header
-cells.append(nbf.v4.new_markdown_cell("""---
+cells.append(nbf.v4.new_markdown_cell(r"""---
 ## Question 2: Model Architecture Description & Justification
 
 ### 2.1 Multi-Paradigm Modeling Approach
@@ -265,7 +355,7 @@ print(f"Engineered {len(feature_cols)} features: {feature_cols}")
 """))
 
 # Cell 9: Markdown - Question 3 Header
-cells.append(nbf.v4.new_markdown_cell("""---
+cells.append(nbf.v4.new_markdown_cell(r"""---
 ## Question 3: Model Performance Evaluation Using Appropriate Metrics
 
 ### 3.1 Evaluation Framework & Metrics
@@ -516,7 +606,7 @@ Based on our 12-month forecast curve, commodity prices follow a distinct traject
 """))
 
 # Cell 15: Markdown - Question 5 Header
-cells.append(nbf.v4.new_markdown_cell("""---
+cells.append(nbf.v4.new_markdown_cell(r"""---
 ## Question 5: Determining Effectiveness of Implemented Actions
 
 Assuming the recommended corporate interventions are executed, we establish a **3-Tiered Effectiveness Measurement Framework**:
@@ -635,7 +725,7 @@ Implemented in `d:\\Agri\\frontend_examples\\ReactNative_AgriApp.tsx`:
 """))
 
 # Cell 19: Markdown - Question 9 Header
-cells.append(nbf.v4.new_markdown_cell("""---
+cells.append(nbf.v4.new_markdown_cell(r"""---
 ## Question 9: Production Model Monitoring, Drift Detection & Continuous Updating
 
 ### 9.1 Detecting Concept Drift & Data Drift
@@ -685,6 +775,7 @@ In agricultural commodity pricing, model degradation occurs due to:
 ```
 """))
 
+cells = split_markdown_heading_cells(split_code_section_cells(cells))
 nb.cells = cells
 
 # Save the notebook
