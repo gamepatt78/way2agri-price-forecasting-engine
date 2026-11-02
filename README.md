@@ -28,56 +28,55 @@ We have designed, benchmarked, and implemented an enterprise-grade price forecas
 
 ---
 
-## Enterprise System Topology & Architecture
+## System Architecture
 
-The system is architected as a distributed microservice topology designed for high availability, transactional integrity, and ultra-low inference latency:
+The diagram separates user-facing clients, request-handling services, scheduled work, and the data they share:
 
-```
-+---------------------------------------------------------------------------------------------------+
-|                                  WAY2AGRIBUSINESS SYSTEM TOPOLOGY                                 |
-+---------------------------------------------------------------------------------------------------+
+```mermaid
+flowchart TB
+    subgraph clients["Client applications"]
+        web["Web dashboard<br/>Next.js"]
+        mobile["Field app<br/>React Native"]
+    end
 
-     [ Next.js 15 Web Dashboard ]                      [ React Native Field App (Android/iOS) ]
-     - Executive Hedging Simulator                     - Mandi Procurement Agent View
-     - Real-Time Price Curves                          - Offline Cache (AsyncStorage)
-     - Corporate Action Approvals                      - Push Alert on Seasonal Dip (<₹15,000)
-                  |                                                       |
-                  +---------------------------+---------------------------+
-                                              |
-                                              v
-                              +-------------------------------+
-                              |    NGINX Reverse Proxy / API  |
-                              |    SSL Termination & CORS Mgt |
-                              +-------------------------------+
-                                      |               |
-                  /api/v1/business/*  |               |  /predict/* & /health
-                                      v               v
-                +----------------------------+   +----------------------------+
-                |    Django 5 REST Core      |   |   FastAPI Inference Engine |
-                |    (Port 8000)             |   |   (Port 8001)              |
-                | - ModelRegistry & Auditing |   | - In-Memory Model Cache    |
-                | - CorporateAction Workflow |   | - Sub-10ms Latency         |
-                | - Celery Retrain Tasks     |   | - Pydantic Request Parsing |
-                | - Admin Management UI      |   | - OpenAPI / Swagger Docs   |
-                +----------------------------+   +----------------------------+
-                              |                               |
-                              +---------------+---------------+
-                                              |
-                                              v
-                       +---------------------------------------------+
-                       |              Data & State Tier              |
-                       |  - Redis 7.0: Task Queue & Response Cache   |
-                       |  - PostgreSQL / SQLite: Time Series Store   |
-                       |  - Local/S3 Artifacts: .joblib & .json Meta |
-                       +---------------------------------------------+
-                                              ^
-                                              | Trigger (1st of Month / PSI >= 0.20)
-                       +---------------------------------------------+
-                       |       Celery Beat / Automated Worker        |
-                       |  - Continuous Mandi Data Ingestion          |
-                       |  - Population Stability Index (PSI) Drift   |
-                       |  - Walk-Forward Retraining & Auto-Promote   |
-                       +---------------------------------------------+
+    gateway["Reverse proxy<br/>NGINX"]
+
+    subgraph services["Application services"]
+        django["Business API<br/>Django REST Framework"]
+        fastapi["Forecast API<br/>FastAPI"]
+    end
+
+    subgraph jobs["Background processing"]
+        beat["Scheduler<br/>Celery Beat"]
+        worker["Worker<br/>Celery"]
+    end
+
+    subgraph data["Data and model artifacts"]
+        database[("Price and business data<br/>SQLite / PostgreSQL")]
+        redis[("Queue and cache<br/>Redis")]
+        artifacts[("Trained models<br/>.joblib / metadata")]
+    end
+
+    web --> gateway
+    mobile --> gateway
+    gateway -->|"Business requests"| django
+    gateway -->|"Forecast requests"| fastapi
+    django --> database
+    django -->|"Enqueue background tasks"| redis
+    beat -->|"Scheduled tasks"| redis
+    redis -->|"Queued tasks"| worker
+    worker --> database
+    worker --> artifacts
+    fastapi --> artifacts
+
+    classDef client fill:#e8f3ff,stroke:#3674a5,color:#17324d
+    classDef service fill:#eaf7ef,stroke:#43845b,color:#173b25
+    classDef process fill:#fff4df,stroke:#b27a20,color:#4b3512
+    classDef store fill:#f2ecff,stroke:#7656a8,color:#30204b
+    class web,mobile client
+    class gateway,django,fastapi service
+    class beat,worker process
+    class database,redis,artifacts store
 ```
 
 ---
@@ -427,5 +426,3 @@ python ml_pipeline/train_and_forecast.py
 ```
 
 ---
-
-
