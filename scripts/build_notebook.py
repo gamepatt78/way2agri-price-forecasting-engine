@@ -748,30 +748,96 @@ In agricultural commodity pricing, model degradation occurs due to:
 3. **Cumulative Holdout Error Drift:** Trigger alarm if running 3-month rolling MAPE exceeds 15%.
 
 ### 9.3 CI/CD Retraining & Safe Deployment Pipeline
-```mermaid
-flowchart TB
-    data["New mandi data"] --> clean["Check and clean data"]
-    clean --> drift["Measure drift<br/>PSI and KS"]
-    drift --> decision{"PSI score"}
-    decision -->|"< 0.10"| log["Log telemetry"]
-    decision -->|"0.10–<0.25"| review["Review drift"]
-    decision -->|"≥ 0.25"| train["Retrain model"]
-    train --> candidate["Train candidate"]
-    candidate --> benchmark["Walk-forward test"]
-    benchmark --> gate{"Better holdout score?"}
-    gate -->|No| keep["Keep champion"]
-    gate -->|Yes| canary["Canary release"]
-    canary --> promote["Promote candidate"]
+The workflow below shows the drift decision branches and the candidate-model promotion gate.
+"""))
 
-    classDef source fill:#e8f3ff,stroke:#3674a5,color:#17324d
-    classDef process fill:#eaf7ef,stroke:#43845b,color:#173b25
-    classDef decision fill:#fff4df,stroke:#b27a20,color:#4b3512
-    classDef action fill:#f2ecff,stroke:#7656a8,color:#30204b
-    class data source
-    class clean,drift,train,candidate,benchmark,canary process
-    class decision,gate decision
-    class log,review,keep,promote action
-```
+cells.append(nbf.v4.new_code_cell("""from matplotlib.patches import FancyBboxPatch, Polygon
+
+fig, ax = plt.subplots(figsize=(16, 11))
+ax.set_xlim(0, 18)
+ax.set_ylim(0, 12)
+ax.axis("off")
+fig.suptitle("Monitoring, Drift Response, and Model Promotion", fontsize=18, fontweight="bold", y=0.98)
+
+colors = {
+    "source": "#e8f3ff",
+    "process": "#eaf7ef",
+    "decision": "#fff4df",
+    "action": "#f2ecff",
+}
+
+def add_box(x, y, width, height, text, kind="process", fontsize=11):
+    box = FancyBboxPatch(
+        (x - width / 2, y - height / 2),
+        width,
+        height,
+        boxstyle="round,pad=0.12,rounding_size=0.12",
+        facecolor=colors[kind],
+        edgecolor="#536273",
+        linewidth=1.5,
+    )
+    ax.add_patch(box)
+    ax.text(x, y, text, ha="center", va="center", fontsize=fontsize, wrap=True)
+
+def add_decision(x, y, width, height, text):
+    diamond = Polygon(
+        [(x, y + height / 2), (x + width / 2, y), (x, y - height / 2), (x - width / 2, y)],
+        closed=True,
+        facecolor=colors["decision"],
+        edgecolor="#536273",
+        linewidth=1.5,
+    )
+    ax.add_patch(diamond)
+    ax.text(x, y, text, ha="center", va="center", fontsize=11, wrap=True)
+
+def connect(start, end, label=None, label_position=None):
+    ax.annotate(
+        "",
+        xy=end,
+        xytext=start,
+        arrowprops={"arrowstyle": "->", "color": "#536273", "linewidth": 1.6},
+    )
+    if label:
+        x, y = label_position
+        ax.text(
+            x,
+            y,
+            label,
+            ha="center",
+            va="center",
+            fontsize=10,
+            bbox={"boxstyle": "round,pad=0.2", "facecolor": "white", "edgecolor": "none"},
+        )
+
+add_box(8, 11.1, 3.5, 0.8, "New mandi data", "source", 12)
+add_box(8, 9.5, 5.2, 1.0, "Check anomalies and drift\\nPSI, KS, and rolling MAPE", "process", 12)
+add_decision(8, 7.8, 2.8, 1.35, "PSI\\nscore")
+connect((8, 10.68), (8, 10.05))
+connect((8, 9.0), (8, 8.5))
+
+add_box(2.5, 5.9, 4.1, 1.0, "Log results\\nKeep current model", "action", 11)
+add_box(8, 5.9, 3.5, 1.0, "Review drift", "action", 11)
+add_box(13.5, 5.9, 3.5, 1.0, "Retrain model", "process", 11)
+connect((7.25, 7.35), (3.15, 6.45), "PSI < 0.10", (4.8, 7.0))
+connect((8, 7.1), (8, 6.45), "0.10 to < 0.25", (8, 6.8))
+connect((8.75, 7.35), (12.85, 6.45), "PSI >= 0.25", (11.2, 7.0))
+
+add_box(13.5, 4.55, 3.7, 0.85, "Train candidate model", "process", 11)
+add_box(13.5, 3.25, 3.7, 0.85, "Walk-forward holdout test", "process", 11)
+add_decision(13.5, 1.9, 2.2, 1.15, "Better holdout\\nscore?")
+connect((13.5, 5.45), (13.5, 4.98))
+connect((13.5, 4.12), (13.5, 3.68))
+connect((13.5, 2.82), (13.5, 2.48))
+
+add_box(9.8, 1.9, 2.8, 0.9, "Keep champion", "action", 11)
+add_box(16.3, 1.9, 2.4, 0.9, "Canary release\\n(10% traffic)", "process", 11)
+connect((12.4, 1.9), (11.2, 1.9), "No", (11.8, 2.2))
+connect((14.6, 1.9), (15.1, 1.9), "Yes", (14.85, 2.2))
+add_box(16.3, 0.55, 2.4, 0.75, "Promote candidate", "action", 11)
+connect((16.3, 1.43), (16.3, 0.95))
+
+fig.tight_layout(rect=(0.02, 0.02, 0.98, 0.94))
+plt.show()
 """))
 
 cells = split_markdown_heading_cells(split_code_section_cells(cells))
