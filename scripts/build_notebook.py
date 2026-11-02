@@ -47,7 +47,7 @@ cells.append(nbf.v4.new_markdown_cell("""# Way2Agribusiness India Pvt Ltd — AI
 This notebook delivers a production-grade time series forecasting engine and architectural blueprint designed to predict average monthly agricultural commodity prices for the next 12 months (October 2025 to September 2026). 
 
 It addresses all **9 Candidate Expectation Questions** with rigorous statistical analysis, machine learning modeling, production Django/FastAPI backend implementations, Next.js/React Native integrations, and enterprise monitoring pipelines:
-1. **Data Cleaning & Anomaly Detection:** Identification and statistical imputation of a 30-month copy-paste data corruption window (2021-06 to 2023-11).
+1. **Data Cleaning & Anomaly Detection:** Investigation of a suspicious 30-month price discontinuity (2021-06 to 2023-11); the supplied data does not confirm an exact historical duplicate, so interpolation is treated as a modeling scenario.
 2. **Model Architecture & Justification:** Multi-paradigm benchmarking including SARIMAX, Holt-Winters Exponential Smoothing, Random Forest, XGBoost, and a Stacking Hybrid Ensemble.
 3. **Model Performance Evaluation:** Walk-forward validation across MAE, RMSE, MAPE, and Directional Accuracy.
 4. **Corporate Strategic Responses:** Hedging, FPO forward contracting, warehouse buffering, and dynamic catalog pricing.
@@ -98,23 +98,33 @@ The data dictionary specifies:
 - `date`: ISO 8601 date string (`YYYY-MM-DD`).
 - `avg_monthly_price`: Average monthly price (INR/quintal).
 
-### 1.2 Critical Anomaly Discovery
-During our exploratory data analysis, we discovered a **critical data corruption artifact**:
-- Starting at index 197 (`2021-06-01`), the series experiences an abrupt, unnatural collapse from ₹10,863 to ₹5,070 (-53.3%).
-- A deep pattern comparison revealed that the **30-month window from `2021-06-01` to `2023-11-01` is an EXACT 100% duplicate** of the historical window from `2007-10-01` to `2010-08-01`!
-- At `2023-12-01`, the price suddenly leaps from ₹8,400 to ₹16,163 (+92.4%), matching the real-world inflationary level of late 2023.
+### 1.2 Suspected Anomaly: Abrupt Price Discontinuity
+The supplied series contains a **suspected data-quality issue**, but the data alone does not establish its cause:
+- Starting at index 197 (`2021-06-01`), the series drops sharply from ₹10,863 to ₹5,070.
+- The 30-month window from `2021-06-01` to `2023-11-01` is **not an exact duplicate** of the compared historical window from `2007-10-01` to `2010-03-01` (11 of 30 prices differ). A scan of the supplied series finds no exact matching 30-month window elsewhere.
+- At `2023-12-01`, the price rises from ₹8,400 to ₹16,163. These abrupt changes warrant source-data verification; they do not prove a copy-paste error.
 
 ### 1.3 Why Did This Happen & How To Treat It?
-- **Root Cause:** In real-world agribusiness data compilation from APMC mandis, manual spreadsheet copy-pasting or database ETL collection blackouts (such as during COVID-19 mandi lockdowns) frequently lead to historic rows being pasted into empty date slots.
-- **Handling Strategy:** Training a model on this uncleaned copy-paste anomaly severely distorts seasonal factors, lag memory, and autoregressive coefficients. We formulate a **dual-treatment approach**:
-  1. We detect and flag the 30 anomalous months.
-  2. We apply a time-weighted interpolation connecting May 2021 (₹10,863) to December 2023 (₹16,163), capturing the secular macroeconomic inflation trend.
-  3. We benchmark models on both raw and cleaned trajectories to demonstrate resilience.
+- **Cause:** Unknown from this dataset; verify against the original mandi/source records before classifying these observations as corrupt.
+- **Modeling treatment:** For sensitivity analysis, flag the 30-month period and interpolate between the surrounding observations. This is a provisional scenario, not a verified correction:
+  1. Keep the reported prices available as the raw series.
+  2. Create a separate interpolated series for the candidate period.
+  3. Compare raw and interpolated model results, and validate the period against primary source data before production use.
 """))
 
 # Cell 4: Code - Data Loading & Anomaly Detection
 cells.append(nbf.v4.new_code_cell("""# Load Dataset
-data_path = '../data/price_data.csv' if os.path.exists('../data/price_data.csv') else 'price_data.csv'
+from pathlib import Path
+
+data_candidates = (
+    Path.cwd() / "data" / "price_data.csv",
+    Path.cwd().parent / "data" / "price_data.csv",
+    Path.cwd() / "price_data.csv",
+)
+data_path = next((path for path in data_candidates if path.is_file()), None)
+if data_path is None:
+    raise FileNotFoundError("Could not find data/price_data.csv from the project root or notebooks folder.")
+
 df = pd.read_csv(data_path)
 df['date'] = pd.to_datetime(df['date'])
 df = df.sort_values('date').reset_index(drop=True)
@@ -124,12 +134,23 @@ print(f"Date Range: {df['date'].min().strftime('%Y-%m-%d')} to {df['date'].max()
 print(f"Missing Date Check: {len(pd.date_range(df['date'].min(), df['date'].max(), freq='MS')) == len(df)} (Continuous monthly frequency)")
 print(f"Null Values:\\n{df.isnull().sum()}")
 
-# Anomaly Detection: Verify exact duplication between 2021-2023 and 2007-2010
+# Check the suspected window against the proposed historical comparison
 slice_anom = df.iloc[197:227]['avg_monthly_price'].values # 2021-06 to 2023-11 (30 months)
-slice_orig = df.iloc[33:63]['avg_monthly_price'].values   # 2007-10 to 2010-04 (30 months)
-is_exact_dup = (slice_anom == slice_orig).all()
+slice_orig = df.iloc[33:63]['avg_monthly_price'].values   # 2007-10 to 2010-03 (30 months)
+mismatch_count = int(np.count_nonzero(slice_anom != slice_orig))
+is_exact_dup = mismatch_count == 0
 
-print(f"\\n[CRITICAL DISCOVERY] Is 2021-06 to 2023-11 an EXACT duplicate of 2007-10 to 2010-04? -> {is_exact_dup}")
+prices = df['avg_monthly_price'].to_numpy(dtype=float)
+matching_windows = []
+for start in range(len(prices) - len(slice_anom) + 1):
+    end = start + len(slice_anom)
+    if start < 227 and end > 197:
+        continue
+    if np.array_equal(prices[start:end], slice_anom):
+        matching_windows.append((df.loc[start, 'date'], df.loc[end - 1, 'date']))
+
+print(f"\\n[DATA QUALITY CHECK] Exact match to 2007-10 through 2010-03? {is_exact_dup} ({mismatch_count} of 30 prices differ)")
+print(f"Exact matching 30-month windows elsewhere in the supplied series: {len(matching_windows)}")
 
 # Flag anomaly and create cleaned trajectory
 df['is_anomaly'] = False
@@ -141,7 +162,7 @@ df = df.set_index('date')
 df['cleaned_price'] = df['cleaned_price'].interpolate(method='time')
 df = df.reset_index()
 
-print(f"Cleaned price successfully interpolated over {df['is_anomaly'].sum()} anomalous months.")
+print(f"Cleaned price successfully interpolated over {df['is_anomaly'].sum()} flagged months.")
 """))
 
 # Cell 5: Code - Plotting Historical & Cleaned Data
@@ -150,13 +171,13 @@ fig, ax = plt.subplots(figsize=(15, 6))
 
 ax.plot(df['date'], df['avg_monthly_price'], label='Reported Monthly Price (Raw)', color='#1f77b4', lw=2)
 ax.plot(df.loc[df['is_anomaly'], 'date'], df.loc[df['is_anomaly'], 'avg_monthly_price'], 
-        'ro', markersize=5, label='Identified Copy-Paste Anomaly Window (30 Months)')
+        'ro', markersize=5, label='Flagged Suspected Window (30 Months)')
 ax.plot(df['date'], df['cleaned_price'], '--', color='#2ca02c', lw=2.2, label='Cleaned / Imputed Trajectory')
 
 ax.set_title("Way2Agribusiness Commodity Price Series: Anomaly Identification & Cleaning (2005 - 2025)", fontsize=14, fontweight='bold')
 ax.set_xlabel("Year", fontsize=12)
 ax.set_ylabel("Price (INR/quintal)", fontsize=12)
-ax.axvspan(pd.to_datetime('2021-06-01'), pd.to_datetime('2023-11-01'), color='red', alpha=0.1, label='Corrupted Period Overlay')
+ax.axvspan(pd.to_datetime('2021-06-01'), pd.to_datetime('2023-11-01'), color='red', alpha=0.1, label='Candidate period (cause unverified)')
 ax.legend(loc='upper left', frameon=True, fontsize=11)
 plt.tight_layout()
 plt.show()
@@ -469,16 +490,16 @@ cells.append(nbf.v4.new_markdown_cell("""---
 ## Question 4: Actions a Company Could Take to Respond to Predicted Price Changes
 
 Based on our 12-month forecast curve, commodity prices follow a distinct trajectory:
-1. **Short-Term Plateau (Oct–Dec 2025):** ₹15,771 to ₹15,430.
-2. **Seasonal Harvest Trough (Jan–Feb 2026):** Price dips to **₹14,442 in February 2026** (-8.3% from spot).
-3. **Summer & Pre-Monsoon Rally (Mar–Jul 2026):** Price rises aggressively to **₹16,140 in July 2026** (+11.8% from Feb trough).
-4. **Late Kharif Surge (Sep 2026):** Closes at **₹16,159**.
+1. **Short-Term Plateau (Oct–Dec 2025):** Forecast prices range from ₹15,776 to ₹15,389.
+2. **Seasonal Harvest Trough (Jan–Feb 2026):** Price reaches **₹14,490 in February 2026**.
+3. **Summer & Pre-Monsoon Rally (Mar–Jul 2026):** Price rises to **₹16,132 in July 2026**.
+4. **Late Kharif Surge (Sep 2026):** Closes at **₹16,165**.
 
 ### Concrete Strategic Corporate Actions for Way2Agribusiness:
 1. **Forward Contracting with Farmer Producer Organizations (FPOs):**
    - *Timing:* Execute in **January–February 2026**.
    - *Mechanism:* Lock in 6-month bilateral forward supply agreements at ₹14,500–₹14,800/quintal with Karnataka FPOs (e.g., in Tumkur, Mandya, Shimoga).
-   - *Impact:* Guarantees raw material supply and caps procurement costs below ₹15,000 when spot market rises to ₹16,140 in July.
+   - *Impact:* Guarantees raw material supply and caps procurement costs below ₹15,000 when the forecast reaches ₹16,132 in July.
 
 2. **Strategic Inventory Buffer Stockpiling (Yeshwanthpur Hub):**
    - *Timing:* Fill warehouse capacity in **February 2026**.
@@ -662,32 +683,6 @@ In agricultural commodity pricing, model degradation occurs due to:
 |                                                  Promote to Active Champion     |
 +---------------------------------------------------------------------------------+
 ```
-"""))
-
-# Cell 20: Markdown - Submission Checklist & Conclusion
-cells.append(nbf.v4.new_markdown_cell("""---
-## Final Submission Checklist & Verification
-
-### Deliverables Summary
-- [x] **Jupyter Notebook (`AgriPrice_Forecasting_Way2Agri.ipynb`):** Complete, self-contained, and executed.
-- [x] **Question 1 Answered:** Data cleaning, missing values analysis, and identification/imputation of the 30-month copy-paste anomaly.
-- [x] **Question 2 Answered:** Architectural details and justification for SARIMAX, Holt-Winters, XGBoost, and Stacking Hybrid Ensemble.
-- [x] **Question 3 Answered:** Walk-forward evaluation across MAE, RMSE, MAPE, and 12-month forward curve projection.
-- [x] **Question 4 Answered:** Corporate strategic responses (FPO forward contracting, warehouse buffering, dynamic pricing).
-- [x] **Question 5 Answered:** Quantitative and statistical effectiveness framework (PCV, Gross Margin Index, Difference-in-Differences).
-- [x] **Question 6 Answered & Built:** Production Django models, REST viewsets, serializers, and Celery architecture.
-- [x] **Question 7 Answered & Built:** FastAPI low-latency microservice with OpenAPI/Swagger and Pydantic validation.
-- [x] **Question 8 Answered & Built:** Next.js enterprise web dashboard and React Native offline mobile screen.
-- [x] **Question 9 Answered:** Comprehensive production monitoring, PSI/KS drift detection, and CI/CD retraining.
-
-### Contact Details for Submission
-- **Email Submission To:** `way2agriintelai@gmail.com`
-- **WhatsApp Submission To:** `+91 9449004956`
-- **Workstation:** Way2Agribusiness India Pvt Ltd, Yeshwanthpur Office, Bengaluru, Karnataka
-- **Attachments Included:**
-  1. Completed Jupyter Notebook (`.ipynb`)
-  2. Candidate Updated Resume / CV
-  3. Aadhaar Card Image
 """))
 
 nb.cells = cells

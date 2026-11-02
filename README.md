@@ -20,9 +20,9 @@ Agricultural commodity markets in South India—particularly Karnataka's APMC ma
 
 ### Solution Delivered
 We have designed, benchmarked, and implemented an enterprise-grade price forecasting engine that:
-1. **Forensically Audits Historical Data:** Detects and statistically rectifies an injected/historical **30-month copy-paste data anomaly** spanning June 2021 to November 2023.
-2. **Deploys a Multi-Paradigm Champion Model:** Combines **SARIMAX** (statistical seasonal autoregression) with **XGBoost** (non-linear recursive gradient boosting) into a **Stacking Hybrid Ensemble** achieving **9.43% MAPE** on a 12-month holdout test set.
-3. **Projects the 12-Month Forward Price Curve (Oct 2025 – Sep 2026):** Identifies a high-conviction **seasonal trough in February 2026 (₹14,442/Qtl)** followed by an aggressive **summer peak in July 2026 (₹16,140/Qtl)**.
+1. **Investigates Historical Data Quality:** Flags a suspicious **30-month price discontinuity** spanning June 2021 to November 2023. The supplied series does not confirm an exact historical duplicate, so interpolation is treated as a provisional modeling scenario.
+2. **Benchmarks Forecasting Models:** The executed notebook's Hybrid Ensemble achieved **9.56% MAPE** on a 12-month holdout test set; XGBoost scored **9.57%**.
+3. **Projects the 12-Month Forward Price Curve (Oct 2025 – Sep 2026):** The executed forecast reaches a low of **₹14,490/Qtl in February 2026** and a July peak of **₹16,132/Qtl**.
 4. **Formulates Algorithmic Procurement Actions:** Outlines a structured FPO forward contracting and buffer-stocking strategy projected to deliver **₹49.67 Lakhs in procurement cost avoidance**.
 5. **Architects a Scalable Production Stack:** Implements a decoupled architecture featuring **Django 5** for transactional ORM and audit logging, **FastAPI** for sub-10ms asynchronous inference, **Next.js 15** for corporate hedging simulation, and **React Native** for offline field procurement.
 
@@ -137,15 +137,14 @@ d:\Agri\
   - Mean: ₹7,918.89 | Median: ₹7,250.00 | Std Dev: ₹2,804.99
   - Min: ₹3,500.00 (April 2006) | Max: ₹16,163.00 (December 2023)
 
-### The 30-Month Duplication Anomaly
-Diagnostic analysis identified an unnatural structural collapse in June 2021:
+### Suspected 30-Month Price Discontinuity
+The supplied data contains an abrupt price drop in June 2021:
 - May 2021: **₹10,863.00**
-- June 2021: **₹5,070.00** (Abrupt **-53.3%** collapse in 30 days)
+- June 2021: **₹5,070.00**
 
-Cross-correlation and sliding window vector comparisons uncovered that:
-$$\mathbf{P}_{2021-06 \to 2023-11} \equiv \mathbf{P}_{2007-10 \to 2010-08} \quad (\text{Exact } 100\% \text{ Numerical Match for } 30 \text{ Consecutive Months})$$
+The 30 prices from June 2021 to November 2023 are **not an exact match** for the compared 30-month historical window (October 2007 to March 2010): **11 of 30 values differ**. A scan found no exact match elsewhere in the supplied series. The cause of the discontinuity is unknown and should be checked against the original source records.
 
-In December 2023, the price suddenly jumps from **₹8,400 to ₹16,163 (+92.4%)**, restoring alignment with real-world post-pandemic agricultural inflation.
+For modeling sensitivity analysis, the notebook flags this period and interpolates its values between May 2021 and December 2023. This is a provisional scenario, not a verified correction; the raw reported prices are retained.
 
 ```
 Reported vs Cleaned Trajectory:
@@ -155,7 +154,7 @@ Reported vs Cleaned Trajectory:
        |            (May 2021: 10,863)  /  Cleaned Trend
 10,000 |                             * /
        |                              \                  *
- 5,000 |                               *----------------/  Corrupted 30-Month Duplicate
+ 5,000 |                               *----------------/  Flagged Candidate Period
        +----------------------------------------------------------------------
          2005        2010         2015         2020    2023     2025
 ```
@@ -230,11 +229,10 @@ $$\text{MAE} = \frac{1}{n}\sum_{t=1}^n |y_t - \hat{y}_t|, \quad \text{RMSE} = \s
 | Model Architecture | Model Paradigm | MAE (INR) | RMSE (INR) | MAPE (%) | Directional Accuracy (%) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Seasonal Naive (Lag 12)** | Baseline | ₹1,723.51 | ₹1,956.70 | 13.14% | 50.0% |
-| **Random Forest Regressor** | Bagging Ensemble | ₹1,506.10 | ₹1,970.89 | 12.05% | 58.3% |
-| **SARIMAX$(1,1,1) \times (1,1,1)_{12}$** | Statistical State-Space | ₹1,223.50 | ₹1,606.19 | 9.73% | 66.7% |
-| **Holt-Winters (Additive)** | Exponential Smoothing | ₹1,223.06 | ₹1,580.40 | 9.65% | 66.7% |
-| **XGBoost Regressor** | Gradient Boosted Trees | ₹1,186.72 | ₹1,568.62 | 9.33% | 75.0% |
-| **Hybrid Stacking Ensemble** | **Champion Combination** | **₹1,190.16** | **₹1,572.02** | **9.43%** | **75.0%** |
+| **SARIMAX** | Statistical State-Space | ₹1,223.50 | ₹1,606.19 | 9.73% | Not reported |
+| **Holt-Winters** | Exponential Smoothing | ₹1,243.17 | ₹1,610.41 | 9.87% | Not reported |
+| **XGBoost Regressor** | Gradient Boosted Trees | ₹1,216.48 | ₹1,609.55 | 9.57% | Not reported |
+| **Hybrid Ensemble** | **Champion Combination** | **₹1,207.08** | **₹1,592.79** | **9.56%** | **Not reported** |
 
 ### Why the Hybrid Stacking Ensemble is the Production Champion
 1. **Bias-Variance Minimization:** While XGBoost marginally achieved lowest test error, tree-based models cannot extrapolate linear trends beyond maximum historical values. SARIMAX supplies rigorous statistical trend extrapolation and analytical confidence intervals.
@@ -248,11 +246,11 @@ Trained on the complete historical timeline (2005 to September 2025), the produc
 
 ```
 Future Price Path (INR/Quintal):
-₹16,500 |                                                      * July: 16,140      * Sep: 16,159
+₹16,500 |                                                      * July: 16,132      * Sep: 16,165
         |                                                     / \                 /
-₹15,500 |  * Oct: 15,771   * Dec: 15,430                     *   * May: 15,885   *
+₹15,500 |  * Oct: 15,776   * Dec: 15,389                     *   * May: 15,916   *
         |   \             /                                 /
-₹14,500 |    \           /                     * Feb: 14,442
+₹14,500 |    \           /                     * Feb: 14,490
         |     \_________/                     (SEASONAL TROUGH)
         +---------------------------------------------------------------------------------
           Oct-25  Nov-25  Dec-25  Jan-26  Feb-26  Mar-26  Apr-26  May-26  Jun-26  Jul-26  Aug-26  Sep-26
@@ -260,37 +258,37 @@ Future Price Path (INR/Quintal):
 
 | Horizon | Target Month | Predicted Price | 95% Confidence Interval | Strategic Market Phase & Action |
 | :--- | :--- | :--- | :--- | :--- |
-| **M+1** | 2025-10-01 | **₹15,771.46** | ₹13,770.77 – ₹17,772.15 | Stable Plateau |
-| **M+2** | 2025-11-01 | **₹15,786.11** | ₹13,706.94 – ₹17,865.28 | Stable Plateau |
-| **M+3** | 2025-12-01 | **₹15,430.61** | ₹13,275.81 – ₹17,585.41 | Mild Early Harvest Softening |
-| **M+4** | 2026-01-01 | **₹15,271.50** | ₹13,043.63 – ₹17,499.37 | Pre-Contracting Window Opens |
-| **M+5** | **2026-02-01** | **₹14,442.23** | **₹12,143.62 – ₹16,740.84** | **SEASONAL TROUGH (BUY SIGNAL): Lock Forward Contracts** |
-| **M+6** | 2026-03-01 | **₹15,299.42** | ₹12,932.18 – ₹17,666.66 | Post-Harvest Rebound |
-| **M+7** | 2026-04-01 | **₹15,442.30** | ₹13,008.36 – ₹17,876.24 | Upward Inflationary Pressure |
-| **M+8** | 2026-05-01 | **₹15,885.80** | ₹13,386.95 – ₹18,384.65 | Dynamic Catalog Price Adjustment Window |
-| **M+9** | 2026-06-01 | **₹15,858.49** | ₹13,296.36 – ₹18,420.62 | Pre-Monsoon Consolidation |
-| **M+10** | **2026-07-01** | **₹16,140.03** | **₹13,516.16 – ₹18,763.90** | **SEASONAL PEAK: Gross Margin Defense** |
-| **M+11** | 2026-08-01 | **₹15,357.19** | ₹12,672.99 – ₹18,041.39 | Interim Market Moderation |
-| **M+12** | 2026-09-01 | **₹16,159.63** | ₹13,416.43 – ₹18,902.83 | Late Kharif Peak |
+| **M+1** | 2025-10-01 | **₹15,775.77** | ₹13,775.08 – ₹17,776.46 | Stable |
+| **M+2** | 2025-11-01 | **₹15,777.05** | ₹13,697.88 – ₹17,856.22 | Stable |
+| **M+3** | 2025-12-01 | **₹15,389.07** | ₹13,234.27 – ₹17,543.87 | Stable |
+| **M+4** | 2026-01-01 | **₹15,245.77** | ₹13,017.90 – ₹17,473.64 | Stable |
+| **M+5** | **2026-02-01** | **₹14,489.77** | **₹12,191.16 – ₹16,788.38** | **Trough (Buy/Forward)** |
+| **M+6** | 2026-03-01 | **₹15,336.09** | ₹12,968.85 – ₹17,703.33 | Stable |
+| **M+7** | 2026-04-01 | **₹15,644.25** | ₹13,210.31 – ₹18,078.19 | Stable |
+| **M+8** | 2026-05-01 | **₹15,916.33** | ₹13,417.48 – ₹18,415.18 | Stable |
+| **M+9** | 2026-06-01 | **₹15,974.61** | ₹13,412.48 – ₹18,536.74 | Stable |
+| **M+10** | **2026-07-01** | **₹16,132.14** | **₹13,508.27 – ₹18,756.01** | **Peak (Hedge/Sell)** |
+| **M+11** | 2026-08-01 | **₹15,410.28** | ₹12,726.08 – ₹18,094.48 | Stable |
+| **M+12** | 2026-09-01 | **₹16,164.75** | ₹13,421.55 – ₹18,907.95 | Peak (Hedge/Sell) |
 
 ---
 
-## Algorithmic Corporate Actions & ROI Quantification (Questions 4 & 5)
+## Illustrative Corporate Actions & ROI Framework (Questions 4 & 5)
 
-### Strategic Corporate Interventions
+The following are proposed actions based on the forecast, not guaranteed savings. The model's February forecast is ₹14,489.77/Qtl and its July forecast is ₹16,132.14/Qtl, a gross forecast spread of **₹1,642.37/Qtl** before contract, storage, financing, transport, and quality costs.
 
 #### 1. FPO Forward Contracting Window (Timing: January–February 2026)
-- **Insight:** Commodity prices drop to an annual low of **₹14,442/Qtl in February 2026** before escalating to **₹16,140/Qtl in July 2026** ($\Delta = +₹1,698/\text{Qtl}$).
-- **Action:** Execute 6-month bilateral forward procurement agreements with Farmer Producer Organizations (FPOs) across Karnataka (e.g., Tumakuru, Mandya, Davanagere) locking prices at ₹14,600/Qtl.
-- **Projected Impact:** On a volume of 1,000 Quintals, generates **₹17.17 Lakhs** in direct procurement cost avoidance.
+- **Insight:** The forecast has a February trough of **₹14,489.77/Qtl** and a July peak of **₹16,132.14/Qtl**.
+- **Action:** Evaluate six-month forward supply agreements with Farmer Producer Organizations (FPOs), subject to validated quotes, contract terms, and delivered quality.
+- **Illustrative gross spread:** At 1,000 Qtl, the forecast February-to-July difference is **₹16.42 lakh** before procurement and carrying costs; this is not a guaranteed saving.
 
 #### 2. Yeshwanthpur Hub Strategic Warehouse Buffering (Timing: February 2026)
 - **Action:** Expand strategic buffer stockpiles from standard 30-day operating requirements to 75-day inventory capacity during the February harvest window.
-- **Economic Feasibility:** Warehouse storage and financing costs in Bengaluru average ₹45/Qtl/month ($\approx ₹225/\text{Qtl}$ for 5 months), generating net net savings of ₹1,473/Qtl over peak spot purchases. Projected net value: **₹8.50 Lakhs**.
+- **Economic Feasibility:** Compare documented warehouse, financing, handling, and spoilage costs against the forecast spread before setting a buffer-stock target. Savings depend on realized prices and costs.
 
 #### 3. Dynamic B2B/B2C Catalog Pricing (Timing: May–June 2026)
 - **Action:** Adjust wholesale distribution and direct-to-retail product pricing on Way2Agribusiness online platforms by **+8.5%** starting May 2026.
-- **Impact:** Counterbalances input cost inflation, protecting the company's 22% gross processing margin and avoiding compressed margins during Q3 2026. Projected margin protection: **₹24.00 Lakhs**.
+- **Impact:** Reassess catalog pricing against realized input costs and customer demand; the forecast alone does not establish a margin-protection amount.
 
 ---
 
