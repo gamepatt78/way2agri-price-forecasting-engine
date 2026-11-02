@@ -428,13 +428,7 @@ python ml_pipeline/train_and_forecast.py
 
 ---
 
-## Candidate Credentials & Submission Channels
 
-- **Target Organization:** Way2Agribusiness India Pvt Ltd
-- **Workstation Office:** Yeshwanthpur Office, Bengaluru, Karnataka
-- **Primary Submission Channels:**
-  - **WhatsApp:** `+91 9449004956` (Dr. Prasanna)
-  - **Email:** `way2agriintelai@gmail.com`
 - **Submission Attachments:**
   1. Master Jupyter Notebook: `notebooks/AgriPrice_Forecasting_Way2Agri.ipynb`
   2. Executive Technical Word Document: `docs/Way2Agribusiness_Assignment_Report.docx`
