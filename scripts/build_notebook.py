@@ -115,21 +115,9 @@ nb.metadata = {
 
 cells = []
 
-# Cell 1: Markdown Title & Candidate Submission Header
+# Cell 1: Markdown Title & Executive Summary
 cells.append(nbf.v4.new_markdown_cell("""# Way2Agribusiness India Pvt Ltd — AI/ML Developer Screening Task
 ## End-to-End Commodity Price Forecasting & Production Architecture (Django, FastAPI, Next.js, React Native)
-
----
-
-### Candidate Submission Information
-- **Position Applied For:** AI/ML Developer
-- **Organization:** Way2Agribusiness India Pvt Ltd
-- **Workstation Location:** Yeshwanthpur Office, Bengaluru, Karnataka
-- **Submission Requirements:** 
-  - Jupyter Notebook (`.ipynb`)
-  - Shared via WhatsApp to: **+91 9449004956**
-  - Emailed to: **way2agriintelai@gmail.com**
-- **Date of Submission:** November 02, 2026
 
 ---
 
@@ -636,26 +624,44 @@ cells.append(nbf.v4.new_markdown_cell("""---
 ### 6.1 Architectural Topology
 Django serves as the robust, transactional enterprise backbone for user management, business data persistence, and corporate action approval workflows.
 
-```
-+-----------------------------------------------------------------------------------+
-|                            DJANGO WEB SYSTEM ARCHITECTURE                         |
-|                                                                                   |
-|  [ Web Browser / Admin ]    [ Celery Beat / Worker ]      [ Client Applications ] |
-|            |                           |                            |             |
-|            v                           v                            v             |
-|   +---------------------------------------------------------------------------+   |
-|   |                       Django Application Core                             |   |
-|   |  - Models: CommodityPrice, ModelRegistry, PriceForecast, CorporateAction  |   |
-|   |  - Django REST Framework (DRF) Viewsets & Serializers                     |   |
-|   |  - Authentication, Permissions & Auditing                                 |   |
-|   +---------------------------------------------------------------------------+   |
-|            |                                              |                       |
-|            v                                              v                       |
-|   [ PostgreSQL / SQLite ]                       [ Redis Task Queue & Broker ]     |
-|   - Historical Time Series                      - Automated Monthly Retraining    |
-|   - Model Metadata & Metrics                    - Anomaly & Drift Notifications   |
-|   - Realized vs Forecast Audit                                                    |
-+-----------------------------------------------------------------------------------+
+```mermaid
+flowchart TB
+    subgraph clients["Clients"]
+        admin["Web browser / Admin"]
+        apps["Client applications"]
+    end
+
+    subgraph django["Django application"]
+        api["Django REST Framework<br/>ViewSets and serializers"]
+        models["Business models<br/>Prices, forecasts, registry, actions"]
+        auth["Authentication, permissions,<br/>and auditing"]
+    end
+
+    subgraph jobs["Background tasks"]
+        beat["Celery Beat"]
+        worker["Celery worker"]
+    end
+
+    database[("PostgreSQL / SQLite<br/>Prices and business records")]
+    redis[("Redis<br/>Task queue and broker")]
+
+    admin --> api
+    apps --> api
+    api --> models
+    api --> auth
+    models --> database
+    beat --> redis
+    redis --> worker
+    worker --> database
+
+    classDef client fill:#e8f3ff,stroke:#3674a5,color:#17324d
+    classDef service fill:#eaf7ef,stroke:#43845b,color:#173b25
+    classDef process fill:#fff4df,stroke:#b27a20,color:#4b3512
+    classDef store fill:#f2ecff,stroke:#7656a8,color:#30204b
+    class admin,apps client
+    class api,models,auth service
+    class beat,worker process
+    class database,redis store
 ```
 
 ### 6.2 Django Models Implementation (Excerpt)
@@ -677,25 +683,21 @@ cells.append(nbf.v4.new_markdown_cell("""---
 ### 7.1 Microservice Separation of Concerns
 While Django manages relational data persistence, authentication, and corporate workflows, **FastAPI provides high-throughput, sub-10ms asynchronous inference**:
 
-```
-+---------------------+           +------------------------+
-|   Client Device     |  Request  |   NGINX Reverse Proxy  |
-| (Next.js / Mobile)  | --------> | (SSL Termination, CORS)|
-+---------------------+           +------------------------+
-                                      |              |
-                    /api/v1/business  |              |  /predict/forecast-12m
-                                      v              v
-                              +---------------+  +---------------------+
-                              |  Django Core  |  |  FastAPI Microsvc   |
-                              |  - Auth & RBAC|  |  - In-Memory Model  |
-                              |  - DB CRUD    |  |  - Sub-10ms Latency |
-                              |  - Actions Log|  |  - Swagger/OpenAPI  |
-                              +---------------+  +---------------------+
-                                      |                     |
-                                      +----------+----------+
-                                                 |
-                                                 v
-                                        [ Redis Memory Cache ]
+```mermaid
+flowchart LR
+    client["Web or mobile client"] --> proxy["NGINX reverse proxy"]
+    proxy -->|"Business API"| django["Django Core<br/>Auth, data, actions"]
+    proxy -->|"Forecast API"| fastapi["FastAPI<br/>Inference and OpenAPI"]
+    django --> database[("Relational database")]
+    django --> redis[("Redis cache / task queue")]
+    fastapi --> models[("Loaded model artifacts")]
+
+    classDef client fill:#e8f3ff,stroke:#3674a5,color:#17324d
+    classDef service fill:#eaf7ef,stroke:#43845b,color:#173b25
+    classDef store fill:#f2ecff,stroke:#7656a8,color:#30204b
+    class client client
+    class proxy,django,fastapi service
+    class database,redis,models store
 ```
 
 ### 7.2 FastAPI Endpoint Implementation
@@ -743,35 +745,29 @@ In agricultural commodity pricing, model degradation occurs due to:
 3. **Cumulative Holdout Error Drift:** Trigger alarm if running 3-month rolling MAPE exceeds 15%.
 
 ### 9.3 CI/CD Retraining & Safe Deployment Pipeline
-```
-+---------------------------------------------------------------------------------+
-|                        AUTOMATED CONTINUOUS RETRAINING PIPELINE                 |
-|                                                                                 |
-|   New Mandi Data Ingestion ---> Automated Anomaly Check & Cleaning              |
-|                                         |                                       |
-|                                         v                                       |
-|                             Calculate PSI & KS Drift Tests                      |
-|                                         |                                       |
-|                    +--------------------+--------------------+                  |
-|                    |                                         |                  |
-|          [ PSI < 0.1: Healthy ]                    [ PSI >= 0.2: Drift Detected] |
-|                    |                                         |                  |
-|                    v                                         v                  |
-|          Log Telemetry to Grafana                 Trigger Airflow / Celery DAG  |
-|                                                              |                  |
-|                                                              v                  |
-|                                                  Train Candidate Model          |
-|                                                              |                  |
-|                                                              v                  |
-|                                                  Walk-Forward Benchmark Check   |
-|                                                  (Candidate MAPE < Champion)    |
-|                                                              |                  |
-|                                                              v                  |
-|                                                  Canary Release (10% Traffic)   |
-|                                                              |                  |
-|                                                              v                  |
-|                                                  Promote to Active Champion     |
-+---------------------------------------------------------------------------------+
+```mermaid
+flowchart TB
+    data["New mandi data"] --> clean["Anomaly check and cleaning"]
+    clean --> drift["Calculate PSI and KS drift tests"]
+    drift --> decision{"Drift level"}
+    decision -->|"PSI < 0.10"| log["Log telemetry"]
+    decision -->|"PSI 0.10–0.25"| review["Flag for review"]
+    decision -->|"PSI > 0.25"| train["Trigger retraining"]
+    train --> candidate["Train candidate model"]
+    candidate --> benchmark["Walk-forward benchmark"]
+    benchmark --> gate{"Candidate MAPE better?"}
+    gate -->|No| keep["Keep active champion"]
+    gate -->|Yes| canary["Canary release"]
+    canary --> promote["Promote candidate"]
+
+    classDef source fill:#e8f3ff,stroke:#3674a5,color:#17324d
+    classDef process fill:#eaf7ef,stroke:#43845b,color:#173b25
+    classDef decision fill:#fff4df,stroke:#b27a20,color:#4b3512
+    classDef action fill:#f2ecff,stroke:#7656a8,color:#30204b
+    class data source
+    class clean,drift,train,candidate,benchmark,canary process
+    class decision,gate decision
+    class log,review,keep,promote action
 ```
 """))
 
@@ -779,7 +775,8 @@ cells = split_markdown_heading_cells(split_code_section_cells(cells))
 nb.cells = cells
 
 # Save the notebook
-nb_path = os.path.join(os.path.dirname(__file__), "notebooks", "AgriPrice_Forecasting_Way2Agri.ipynb")
+project_root = os.path.dirname(os.path.dirname(__file__))
+nb_path = os.path.join(project_root, "notebooks", "AgriPrice_Forecasting_Way2Agri.ipynb")
 with open(nb_path, "w", encoding="utf-8") as f:
     nbf.write(nb, f)
 

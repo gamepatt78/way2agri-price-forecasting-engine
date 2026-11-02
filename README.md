@@ -145,17 +145,16 @@ The 30 prices from June 2021 to November 2023 are **not an exact match** for the
 
 For modeling sensitivity analysis, the notebook flags this period and interpolates its values between May 2021 and December 2023. This is a provisional scenario, not a verified correction; the raw reported prices are retained.
 
-```
-Reported vs Cleaned Trajectory:
-20,000 |                                                    * (Dec 2023: 16,163)
-       |                                                   /
-15,000 |                                 - - - - - - - - -
-       |            (May 2021: 10,863)  /  Cleaned Trend
-10,000 |                             * /
-       |                              \                  *
- 5,000 |                               *----------------/  Flagged Candidate Period
-       +----------------------------------------------------------------------
-         2005        2010         2015         2020    2023     2025
+```mermaid
+flowchart LR
+    before["May 2021<br/>Reported: ₹10,863"] --> drop["June 2021<br/>Reported: ₹5,070"]
+    drop --> flagged["June 2021–November 2023<br/>30-month candidate period<br/>11 of 30 values differ from comparison window"]
+    flagged --> endpoint["December 2023<br/>Reported: ₹16,163"]
+
+    classDef observed fill:#e8f3ff,stroke:#3674a5,color:#17324d
+    classDef review fill:#fff4df,stroke:#b27a20,color:#4b3512
+    class before,drop,endpoint observed
+    class flagged review
 ```
 
 ### Statistical Treatment
@@ -185,29 +184,21 @@ To ensure mathematical validity of autoregressive modeling, we conducted Augment
 
 ### Multi-Paradigm Architecture Formulation
 
-```
-+-----------------------------------------------------------------------------------+
-|                        CHAMPION STACKING HYBRID PIPELINE                          |
-|                                                                                   |
-|                   Raw Cleaned Price Series (2005 - 2025)                          |
-|                                     |                                             |
-|                  +------------------+------------------+                          |
-|                  |                                     |                          |
-|                  v                                     v                          |
-|      [ Statistical Stream ]                 [ Machine Learning Stream ]           |
-|      SARIMAX(1,1,1)x(1,1,1)[12]             15 Engineered Features                |
-|      - Models seasonal crop cycles          (Lags, Rolling Stats, Sin/Cos Month)  |
-|      - Analytical prediction intervals      XGBoost Regressor (Recursive Multi-St)|
-|                  |                                     |                          |
-|                  +------------------+------------------+                          |
-|                                     |                                             |
-|                                     v                                             |
-|                   [ Optimal Linear Stacking Combiner ]                            |
-|             \hat{y}_t = 0.50 * \hat{y}_t^{SARIMAX} + 0.50 * \hat{y}_t^{XGBoost}   |
-|                                     |                                             |
-|                                     v                                             |
-|                  Lowest Holdout Variance & Robust Generalization                  |
-+-----------------------------------------------------------------------------------+
+```mermaid
+flowchart LR
+    prices["Historical price series"] --> sarimax["SARIMAX<br/>Seasonal statistical model"]
+    prices --> features["Lag, rolling, and calendar features"]
+    features --> xgboost["XGBoost<br/>Recursive forecasts"]
+    sarimax --> ensemble["Equal-weight ensemble<br/>50% SARIMAX + 50% XGBoost"]
+    xgboost --> ensemble
+    ensemble --> evaluation["Holdout evaluation<br/>and forward forecast"]
+
+    classDef input fill:#e8f3ff,stroke:#3674a5,color:#17324d
+    classDef model fill:#eaf7ef,stroke:#43845b,color:#173b25
+    classDef output fill:#f2ecff,stroke:#7656a8,color:#30204b
+    class prices,features input
+    class sarimax,xgboost,ensemble model
+    class evaluation output
 ```
 
 ### Feature Engineering Matrix (XGBoost & Random Forest)
@@ -243,16 +234,12 @@ $$\text{MAE} = \frac{1}{n}\sum_{t=1}^n |y_t - \hat{y}_t|, \quad \text{RMSE} = \s
 
 Trained on the complete historical timeline (2005 to September 2025), the production engine generated the forward curve for the next 12 operating months:
 
-```
-Future Price Path (INR/Quintal):
-₹16,500 |                                                      * July: 16,132      * Sep: 16,165
-        |                                                     / \                 /
-₹15,500 |  * Oct: 15,776   * Dec: 15,389                     *   * May: 15,916   *
-        |   \             /                                 /
-₹14,500 |    \           /                     * Feb: 14,490
-        |     \_________/                     (SEASONAL TROUGH)
-        +---------------------------------------------------------------------------------
-          Oct-25  Nov-25  Dec-25  Jan-26  Feb-26  Mar-26  Apr-26  May-26  Jun-26  Jul-26  Aug-26  Sep-26
+```mermaid
+xychart-beta
+    title "Forecast price path (INR/quintal)"
+    x-axis ["Oct-25", "Nov-25", "Dec-25", "Jan-26", "Feb-26", "Mar-26", "Apr-26", "May-26", "Jun-26", "Jul-26", "Aug-26", "Sep-26"]
+    y-axis "INR/quintal" 14000 --> 17000
+    line [15776, 15777, 15389, 15246, 14490, 15336, 15644, 15916, 15975, 16132, 15410, 16165]
 ```
 
 | Horizon | Target Month | Predicted Price | 95% Confidence Interval | Strategic Market Phase & Action |
@@ -344,38 +331,27 @@ Implemented in `fastapi_service/main.py`:
 
 ## Production Monitoring, Drift Handling & MLOps (Question 9)
 
-```
-+-----------------------------------------------------------------------------------+
-|                        CONTINUOUS MONITORING & RETRAINING                         |
-|                                                                                   |
-|  Incoming APMC Mandi Data ---> Automated Anomaly Validation                       |
-|                                         |                                         |
-|                                         v                                         |
-|                          Drift Computation Engine:                                |
-|                          1. Population Stability Index (PSI)                      |
-|                          2. Kolmogorov-Smirnov (KS) Test                          |
-|                          3. 3-Month Rolling MAPE                                  |
-|                                         |                                         |
-|                  +----------------------+----------------------+                  |
-|                  |                                             |                  |
-|          [ PSI < 0.10: Stable ]                       [ PSI >= 0.20: Drift ]      |
-|                  |                                             |                  |
-|                  v                                             v                  |
-|        Telemetry Logged to Prometheus/Grafana         Trigger Celery Retrain DAG  |
-|                                                                |                  |
-|                                                                v                  |
-|                                                     Train Candidate Model         |
-|                                                                |                  |
-|                                                                v                  |
-|                                                     Holdout Validation Gate       |
-|                                                     (MAPE_cand < MAPE_champ)      |
-|                                                                |                  |
-|                                                                v                  |
-|                                                     Canary Release (10% Traffic)  |
-|                                                                |                  |
-|                                                                v                  |
-|                                                     Promote in ModelRegistry      |
-+-----------------------------------------------------------------------------------+
+```mermaid
+flowchart TB
+    data["New mandi data"] --> checks["Anomaly validation<br/>PSI, KS, and rolling MAPE"]
+    checks --> decision{"Drift level"}
+    decision -->|"PSI < 0.10"| stable["Log telemetry<br/>Keep current model"]
+    decision -->|"PSI 0.10–0.25"| review["Flag for review"]
+    decision -->|"PSI ≥ 0.25"| train["Trigger retraining"]
+    train --> candidate["Train candidate model"]
+    candidate --> gate{"Candidate beats<br/>champion on holdout?"}
+    gate -->|No| retain["Retain champion"]
+    gate -->|Yes| canary["Canary release"]
+    canary --> promote["Promote candidate"]
+
+    classDef source fill:#e8f3ff,stroke:#3674a5,color:#17324d
+    classDef process fill:#eaf7ef,stroke:#43845b,color:#173b25
+    classDef decision fill:#fff4df,stroke:#b27a20,color:#4b3512
+    classDef action fill:#f2ecff,stroke:#7656a8,color:#30204b
+    class data source
+    class checks,train,candidate,canary process
+    class decision,gate decision
+    class stable,review,retain,promote action
 ```
 
 ### Statistical Drift Formulations
