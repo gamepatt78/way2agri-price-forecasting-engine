@@ -121,17 +121,17 @@ cells.append(nbf.v4.new_markdown_cell("""# Way2Agribusiness India Pvt Ltd — AI
 ---
 
 ### Executive Summary & Deliverables
-This notebook delivers a production-grade time series forecasting engine and architectural blueprint designed to predict average monthly agricultural commodity prices for the next 12 months (October 2025 to September 2026). 
+This notebook delivers an assignment prototype and architectural blueprint to predict average monthly agricultural commodity prices for the next 12 months (October 2025 to September 2026).
 
-It addresses all **9 Candidate Expectation Questions** with rigorous statistical analysis, machine learning modeling, production Django/FastAPI backend implementations, Next.js/React Native integrations, and enterprise monitoring pipelines:
+It addresses all **9 Candidate Expectation Questions** with statistical analysis, machine learning modeling, Django/FastAPI backend examples, Next.js/React Native integrations, and proposed monitoring pipelines:
 1. **Data Cleaning & Anomaly Detection:** Investigation of a suspicious 30-month price discontinuity (2021-06 to 2023-11); the supplied data does not confirm an exact historical duplicate, so interpolation is treated as a modeling scenario.
-2. **Model Architecture & Justification:** Multi-paradigm benchmarking including SARIMAX, Holt-Winters Exponential Smoothing, Random Forest, XGBoost, and a Stacking Hybrid Ensemble.
-3. **Model Performance Evaluation:** Walk-forward validation across MAE, RMSE, MAPE, and Directional Accuracy.
+2. **Model Architecture & Justification:** Multi-paradigm benchmarking including SARIMAX, Holt-Winters Exponential Smoothing, Random Forest, XGBoost, and a 50/50 hybrid blend.
+3. **Model Performance Evaluation:** A single 12-month holdout comparison using MAE, RMSE, MAPE, and Directional Accuracy.
 4. **Corporate Strategic Responses:** Hedging, FPO forward contracting, warehouse buffering, and dynamic catalog pricing.
 5. **Effectiveness Determination:** Difference-in-Differences (DiD), procurement cost variance, and realized ROI tracking.
 6. **Production Deployment with Django:** Django REST Framework, ORM schemas, Celery periodic workers, and admin portals.
-7. **Real-Time Integration via FastAPI & Django:** Sub-10ms asynchronous inference microservice with OpenAPI/Swagger.
-8. **Frontend Integration:** Production Next.js web dashboard and React Native offline-first mobile app.
+7. **Real-Time Integration via FastAPI & Django:** Asynchronous inference example with OpenAPI/Swagger documentation.
+8. **Frontend Integration:** Next.js web dashboard and React Native offline-first mobile app examples.
 9. **Production Monitoring & Drift Handling:** Population Stability Index (PSI), KS tests, canary releases, and automated CI/CD retraining.
 """))
 
@@ -301,14 +301,18 @@ To address these challenges, we selected and benchmarked multiple modeling parad
 | :--- | :--- | :--- | :--- |
 | **Statistical Time Series** | **SARIMAX$(1,1,1) \times (1,1,1)_{12}$** | $\Phi_P(B^s)\phi_p(B)\nabla_s^D\nabla^d y_t = \Theta_Q(B^s)\theta_q(B)\epsilon_t$<br>Rigorous modeling of autocorrelation and 12-month seasonality. | Best statistical foundation for confidence interval estimation. |
 | **Exponential Smoothing** | **Holt-Winters Triple Exponential** | Additive trend and additive seasonal smoothing equations with estimated smoothing parameters $(\alpha, \beta, \gamma)$. | Highly resilient baseline for smooth seasonal trends. |
+| **Machine Learning** | **Random Forest Regressor** | Bagged decision trees trained on lagged prices, rolling statistics, and calendar features. | Provides a tree-based benchmark with a different bias-variance trade-off. |
+| **Machine Learning** | **Random Forest Regressor** | Bagged decision trees trained on lagged prices, rolling statistics, and calendar features. | Provides a tree-based benchmark with a different bias-variance trade-off. |
 | **Machine Learning** | **XGBoost Regressor** | Tree-based gradient boosted ensemble optimizing squared error loss with shrinkage, subsampling, and maximum tree depth. | Captures non-linear lag interactions and structural price jumps. |
-| **Ensemble (Champion)** | **Hybrid Stacking Ensemble** | $\hat{y}_t = 0.50 \cdot \hat{y}_t^{\text{SARIMAX}} + 0.50 \cdot \hat{y}_t^{\text{XGBoost}}$ | Combines statistical seasonal periodicity with tree-based non-linear adaptability, minimizing forecast variance. |
+| **Ensemble (Candidate)** | **Hybrid Ensemble** | $\hat{y}_t = 0.50 \cdot \hat{y}_t^{\text{SARIMAX}} + 0.50 \cdot \hat{y}_t^{\text{XGBoost}}$ | Combines statistical seasonal periodicity with tree-based non-linear adaptability; compare against individual models before production promotion. |
 
 ### 2.2 Feature Engineering for Machine Learning
-For tree-based algorithms (XGBoost, Random Forest), we engineered 15 domain-specific features:
+For tree-based algorithms (XGBoost, Random Forest), we engineered the same 15 features used by the production pipeline:
 - **Autoregressive Lags:** `lag_1`, `lag_2`, `lag_3`, `lag_6`, `lag_12`
 - **Rolling Window Statistics:** `rolling_mean_3`, `rolling_mean_6`, `rolling_mean_12`, `rolling_std_3`, `rolling_std_6`
-- **Calendar & Trigonometric Cyclical Encodings:** `month`, `quarter`, `year`, `trend_index`, $\sin\left(\frac{2\pi \cdot m}{12}\right)$, $\cos\left(\frac{2\pi \cdot m}{12}\right)$.
+- **Calendar & Trigonometric Cyclical Encodings:** `month`, `quarter`, `trend_index`, `sin_month`, and `cos_month`.
+
+The hybrid is retained as a forecast candidate for the architecture comparison. On this single holdout, compare its error with each individual model; repeated rolling-origin validation is needed before selecting a production champion.
 """))
 
 # Cell 8: Code - Feature Engineering
@@ -337,7 +341,12 @@ def build_features(dataframe):
 
 df_features = build_features(df)
 df_clean_ml = df_features.dropna().reset_index(drop=True)
-feature_cols = [c for c in df_clean_ml.columns if c not in ['date', 'avg_monthly_price', 'is_anomaly', 'cleaned_price']]
+feature_cols = [
+    'month', 'quarter', 'trend_index', 'sin_month', 'cos_month',
+    'lag_1', 'lag_2', 'lag_3', 'lag_6', 'lag_12',
+    'rolling_mean_3', 'rolling_mean_6', 'rolling_mean_12',
+    'rolling_std_3', 'rolling_std_6'
+]
 print(f"Engineered {len(feature_cols)} features: {feature_cols}")
 """))
 
@@ -346,7 +355,7 @@ cells.append(nbf.v4.new_markdown_cell(r"""---
 ## Question 3: Model Performance Evaluation Using Appropriate Metrics
 
 ### 3.1 Evaluation Framework & Metrics
-We employ a **12-Month Walk-Forward Holdout Validation Split**:
+We use a single **12-month holdout validation split**:
 - **Training Set:** 237 months (January 2005 to September 2024).
 - **Test Holdout Set:** 12 months (October 2024 to September 2025).
 
@@ -357,12 +366,14 @@ The models are evaluated using four industry-standard metrics:
    $$\text{RMSE} = \sqrt{\frac{1}{n}\sum_{t=1}^n (y_t - \hat{y}_t)^2}$$
 3. **MAPE (Mean Absolute Percentage Error):** Unitless relative percentage error.
    $$\text{MAPE} = \frac{100\%}{n}\sum_{t=1}^n \left|\frac{y_t - \hat{y}_t}{y_t}\right|$$
-4. **MDA (Mean Directional Accuracy):** Percentage of times the predicted price direction matches reality.
-   $$\text{MDA} = \frac{100\%}{n}\sum_{t=1}^n \mathbf{1}_{\{\text{sign}(y_t - y_{t-1}) == \text{sign}(\hat{y}_t - y_{t-1})\}}$$
+4. **Directional Accuracy:** Percentage of months where the forecast and actual price move in the same direction versus the previous observed price.
+   $$\text{DA} = \frac{100\%}{n}\sum_{t=1}^n \mathbf{1}_{\{\text{sign}(y_t - y_{t-1}) == \text{sign}(\hat{y}_t - y_{t-1})\}}$$
+
+This is one contiguous 12-month holdout, not repeated rolling-origin validation.
 """))
 
 # Cell 10: Code - Model Training & Evaluation
-cells.append(nbf.v4.new_code_cell("""# 3.1 Walk-Forward 12-Month Holdout Split
+cells.append(nbf.v4.new_code_cell("""# 3.1 Single 12-Month Holdout Split
 horizon = 12
 train_data = df.iloc[:-horizon].copy()
 test_data = df.iloc[-horizon:].copy()
@@ -402,26 +413,43 @@ results['SARIMAX'] = {
     'preds': y_pred_sarimax
 }
 
-# 4. Machine Learning: XGBoost with Recursive Autoregressive Forecasting
+# 4. Machine Learning: Random Forest and XGBoost with Recursive Forecasting
 train_mask = df_clean_ml['date'] < test_data['date'].min()
 X_tr = df_clean_ml.loc[train_mask, feature_cols]
 y_tr = df_clean_ml.loc[train_mask, 'cleaned_price']
 
+rf_model = RandomForestRegressor(n_estimators=200, max_depth=6, random_state=42)
+rf_model.fit(X_tr, y_tr)
+
 xgb_model = xgb.XGBRegressor(n_estimators=150, max_depth=4, learning_rate=0.05, random_state=42)
 xgb_model.fit(X_tr, y_tr)
 
-# Recursive forecast
-curr_df = train_data.copy()
-xgb_preds = []
-for h in range(horizon):
-    f_df = build_features(curr_df).dropna()
-    last_row = f_df.iloc[-1:][feature_cols]
-    pred_val = float(xgb_model.predict(last_row)[0])
-    xgb_preds.append(pred_val)
-    next_dt = curr_df['date'].max() + pd.DateOffset(months=1)
-    curr_df = pd.concat([curr_df, pd.DataFrame({'date': [next_dt], 'avg_monthly_price': [pred_val], 'cleaned_price': [pred_val], 'is_anomaly': [False]})], ignore_index=True)
+def recursive_predict(model):
+    curr_df = train_data.copy()
+    predictions = []
+    for _ in range(horizon):
+        f_df = build_features(curr_df).dropna()
+        last_row = f_df.iloc[-1:][feature_cols]
+        pred_val = float(model.predict(last_row)[0])
+        predictions.append(pred_val)
+        next_dt = curr_df['date'].max() + pd.DateOffset(months=1)
+        curr_df = pd.concat([curr_df, pd.DataFrame({
+            'date': [next_dt],
+            'avg_monthly_price': [pred_val],
+            'cleaned_price': [pred_val],
+            'is_anomaly': [False]
+        })], ignore_index=True)
+    return np.array(predictions)
 
-y_pred_xgb = np.array(xgb_preds)
+y_pred_rf = recursive_predict(rf_model)
+results['Random Forest'] = {
+    'MAE': mean_absolute_error(y_test, y_pred_rf),
+    'RMSE': np.sqrt(mean_squared_error(y_test, y_pred_rf)),
+    'MAPE': mean_absolute_percentage_error(y_test, y_pred_rf) * 100,
+    'preds': y_pred_rf
+}
+
+y_pred_xgb = recursive_predict(xgb_model)
 results['XGBoost'] = {
     'MAE': mean_absolute_error(y_test, y_pred_xgb),
     'RMSE': np.sqrt(mean_squared_error(y_test, y_pred_xgb)),
@@ -429,7 +457,7 @@ results['XGBoost'] = {
     'preds': y_pred_xgb
 }
 
-# 5. Hybrid Stacking Ensemble (50% SARIMAX + 50% XGBoost)
+# 5. Hybrid Ensemble (50% SARIMAX + 50% XGBoost)
 y_pred_ens = 0.50 * y_pred_sarimax + 0.50 * y_pred_xgb
 results['Hybrid Ensemble'] = {
     'MAE': mean_absolute_error(y_test, y_pred_ens),
@@ -438,13 +466,21 @@ results['Hybrid Ensemble'] = {
     'preds': y_pred_ens
 }
 
+# Directional accuracy uses the previous observed price for each holdout month.
+previous_test_prices = np.concatenate(([y_train[-1]], y_test[:-1]))
+for result in results.values():
+    result['Directional Accuracy (%)'] = np.mean(
+        np.sign(y_test - previous_test_prices) == np.sign(result['preds'] - previous_test_prices)
+    ) * 100
+
 # Tabulate Metrics
 metrics_df = pd.DataFrame([
     {
         'Model Name': k,
         'MAE (INR)': round(v['MAE'], 2),
         'RMSE (INR)': round(v['RMSE'], 2),
-        'MAPE (%)': round(v['MAPE'], 2)
+        'MAPE (%)': round(v['MAPE'], 2),
+        'Directional Accuracy (%)': round(v['Directional Accuracy (%)'], 2)
     }
     for k, v in results.items()
 ]).sort_values('MAPE (%)')
@@ -459,10 +495,10 @@ fig, ax = plt.subplots(figsize=(14, 6))
 
 ax.plot(test_data['date'], y_test, 'k-o', lw=2.5, label='Actual Historical Price (Ground Truth)')
 for m_name, res in results.items():
-    if m_name in ['Holt-Winters', 'SARIMAX', 'XGBoost', 'Hybrid Ensemble']:
+    if m_name in ['Holt-Winters', 'SARIMAX', 'Random Forest', 'XGBoost', 'Hybrid Ensemble']:
         ax.plot(test_data['date'], res['preds'], '--s', lw=1.8, label=f"{m_name} (MAPE: {res['MAPE']:.2f}%)")
 
-ax.set_title("12-Month Holdout Walk-Forward Validation (2024-10 to 2025-09)", fontsize=14, fontweight='bold')
+ax.set_title("12-Month Holdout Validation (2024-10 to 2025-09)", fontsize=14, fontweight='bold')
 ax.set_xlabel("Test Month", fontsize=12)
 ax.set_ylabel("Price (INR/quintal)", fontsize=12)
 ax.legend(loc='upper left', frameon=True, fontsize=10)
@@ -564,29 +600,29 @@ plt.show()
 
 # Cell 14: Markdown - Question 4 Header
 cells.append(nbf.v4.new_markdown_cell("""---
-## Question 4: Actions a Company Could Take to Respond to Predicted Price Changes
+## Question 4: Actions a Company Could Consider for Predicted Price Changes
 
 Based on our 12-month forecast curve, commodity prices follow a distinct trajectory:
 1. **Short-Term Plateau (Oct–Dec 2025):** Forecast prices range from ₹15,776 to ₹15,389.
-2. **Seasonal Harvest Trough (Jan–Feb 2026):** Price reaches **₹14,490 in February 2026**.
-3. **Summer & Pre-Monsoon Rally (Mar–Jul 2026):** Price rises to **₹16,132 in July 2026**.
-4. **Late Kharif Surge (Sep 2026):** Closes at **₹16,165**.
+2. **Seasonal Harvest Trough (Jan–Feb 2026):** Price reaches **₹14,442 in February 2026**.
+3. **Summer & Pre-Monsoon Rally (Mar–Jul 2026):** Price rises to **₹16,140 in July 2026**.
+4. **Late Kharif Surge (Sep 2026):** Closes at **₹16,160**.
 
-### Concrete Strategic Corporate Actions for Way2Agribusiness:
+### Illustrative Strategic Actions:
 1. **Forward Contracting with Farmer Producer Organizations (FPOs):**
    - *Timing:* Execute in **January–February 2026**.
-   - *Mechanism:* Lock in 6-month bilateral forward supply agreements at ₹14,500–₹14,800/quintal with Karnataka FPOs (e.g., in Tumkur, Mandya, Shimoga).
-   - *Impact:* Guarantees raw material supply and caps procurement costs below ₹15,000 when the forecast reaches ₹16,132 in July.
+   - *Mechanism:* Evaluate supplier quotes and terms for a February-to-July purchase plan.
+   - *Impact:* The forecast price difference is not a savings estimate and excludes contract, storage, financing, transport, and quality costs.
 
-2. **Strategic Inventory Buffer Stockpiling (Yeshwanthpur Hub):**
-   - *Timing:* Fill warehouse capacity in **February 2026**.
-   - *Mechanism:* Increase safety stock levels from standard 30-day buffer to 75-day inventory holding.
-   - *Economic Value:* Saves ~₹1,700 per quintal on processed output vs buying at summer peak.
+2. **Strategic Inventory Buffer Stockpiling:**
+   - *Timing:* Evaluate a temporary inventory buffer during the forecast low-price period.
+   - *Mechanism:* Set any buffer target only after validating demand and carrying costs.
+   - *Economic Value:* No savings estimate is made; compare realized prices with storage, financing, handling, and spoilage costs.
 
 3. **Dynamic B2B / B2C Catalog Price Adjustment:**
-   - *Timing:* Implement in **May–June 2026**.
-   - *Mechanism:* Increment wholesale and direct-to-retail product catalog pricing by 7.5%–9.0% on Way2Agribusiness online platforms ahead of peak input inflation.
-   - *Impact:* Preserves gross margins without sudden price shocks to customers.
+   - *Timing:* Review during **May–June 2026**.
+   - *Mechanism:* Pilot adjustments using realized input costs and observed customer demand.
+   - *Impact:* The forecast alone does not establish a suitable adjustment percentage or a margin-protection amount.
 
 4. **Cross-Mandi Arbitrage & Supplier Diversification:**
    - *Mechanism:* Benchmark daily prices across APMC mandis in Karnataka, Maharashtra, and Andhra Pradesh to redirect purchase orders to mandis with slowest price transmission.
@@ -596,24 +632,24 @@ Based on our 12-month forecast curve, commodity prices follow a distinct traject
 cells.append(nbf.v4.new_markdown_cell(r"""---
 ## Question 5: Determining Effectiveness of Implemented Actions
 
-Assuming the recommended corporate interventions are executed, we establish a **3-Tiered Effectiveness Measurement Framework**:
+If proposed interventions are piloted, evaluate them with a pre-agreed **3-Tiered Effectiveness Measurement Framework**:
 
 ### 5.1 Quantitative KPI Metrics
 1. **Procurement Cost Variance (PCV):**
-   $$\text{PCV} = \sum_{t=1}^T \left( P_t^{\text{actual spot}} - P_t^{\text{contracted}} \right) \times Q_t^{\text{procured}}$$
-   - *Target:* Positive cost avoidance $\ge$ ₹1,200/quintal during Q2-Q3 2026.
+   $$\text{PCV} = \sum_{t=1}^T \left( P_t^{\text{actual spot}} - P_t^{\text{contracted}} \right) \times Q_t^{\text{procured}} - \text{verified incremental costs}$$
+   - *Target:* Agree a positive net-benefit threshold with business stakeholders before a pilot; no target has been validated.
 2. **Gross Margin Stability Index:**
    - Tracking whether gross margins remain within $\pm 1.5\%$ of target (e.g. 22%) despite commodity price swings.
 3. **Inventory Turnover & Carrying Cost Adjusted ROI:**
    $$\text{Net Hedging ROI} = \frac{\text{Gross Cost Avoidance} - \text{Warehouse Holding \& Financing Costs}}{\text{Working Capital Committed}} \times 100\%$$
-   - *Target:* Net ROI $\ge 18\%$ annualized.
+   - *Target:* Set any ROI threshold from the approved business case before a pilot.
 
 ### 5.2 Statistical Counterfactual & Difference-in-Differences (DiD)
 - **Control Group:** Peer agribusinesses or unhedged commodity lines purchasing purely on the spot market.
 - **Treatment Group:** Way2Agribusiness product lines procured via AI-triggered forward contracts.
 - **DiD Estimator:**
   $$\hat{\delta}_{\text{DiD}} = \left( \bar{Y}_{\text{treatment, post}} - \bar{Y}_{\text{treatment, pre}} \right) - \left( \bar{Y}_{\text{control, post}} - \bar{Y}_{\text{control, pre}} \right)$$
-  A statistically significant negative $\hat{\delta}$ proves that procurement unit costs fell strictly due to the model's action recommendation.
+  A negative $\hat{\delta}$ is consistent with lower treated costs only if the design's assumptions hold. Statistical significance alone does not establish causality; assess parallel trends, confounders, and uncertainty.
 """))
 
 # Cell 16: Markdown - Question 6 Header
@@ -621,7 +657,7 @@ cells.append(nbf.v4.new_markdown_cell("""---
 ## Question 6: Production Deployment Architecture Using Django
 
 ### 6.1 Architectural Topology
-Django serves as the robust, transactional enterprise backbone for user management, business data persistence, and corporate action approval workflows.
+Django is shown as a proposed service for user management, business data persistence, and corporate action workflows; deployment reliability and performance are not established by this prototype.
 
 ```mermaid
 flowchart TB
@@ -667,7 +703,7 @@ flowchart TB
 ```
 
 ### 6.2 Django Models Implementation (Excerpt)
-The actual code is implemented in `d:\\Agri\\backend\\django_agri\\forecasting\\models.py`:
+The actual code is implemented in `backend/django_agri/forecasting/models.py`:
 - `CommodityPrice`: Stores date, spot price, anomaly flags, and imputed prices.
 - `ModelRegistry`: Maintains versioned models, algorithm types, hyperparameter JSONs, active status flags, and validation metrics (MAE, RMSE, MAPE).
 - `PriceForecast`: Stores 12-month forward curves, 95% confidence intervals, and realized prices for drift auditing.
@@ -683,7 +719,7 @@ cells.append(nbf.v4.new_markdown_cell("""---
 ## Question 7: Real-Time Inference Integration via Django & FastAPI
 
 ### 7.1 Microservice Separation of Concerns
-While Django manages relational data persistence, authentication, and corporate workflows, **FastAPI provides high-throughput, sub-10ms asynchronous inference**:
+While Django manages relational data persistence, authentication, and corporate workflows, **FastAPI provides an asynchronous inference example**; response latency must be benchmarked in the target deployment:
 
 ```mermaid
 flowchart TB
@@ -703,8 +739,8 @@ flowchart TB
 ```
 
 ### 7.2 FastAPI Endpoint Implementation
-Implemented in `d:\\Agri\\fastapi_service\\main.py`:
-- `GET /predict/forecast-12m`: Serves the cached 12-month forward curve in < 5ms.
+Implemented in `fastapi_service/main.py`:
+- `GET /predict/forecast-12m`: Serves the cached 12-month forward curve; benchmark response time in the target deployment.
 - `POST /predict/custom`: Accepts custom arrays of recent prices for on-the-fly multi-step simulation.
 - `GET /health`: Model status and loaded metadata.
 - Integrated Pydantic schema validation for strict type safety.
@@ -715,14 +751,14 @@ cells.append(nbf.v4.new_markdown_cell("""---
 ## Question 8: Frontend Integration with Next.js and React Native
 
 ### 8.1 Next.js 14/15 Web Dashboard
-Implemented in `d:\\Agri\\frontend_examples\\NextJs_AgriDashboard.tsx`:
+Implemented in `frontend_examples/NextJs_AgriDashboard.tsx`:
 - **Server & Client Components:** Fetches static historical metadata server-side and streams real-time forecasts via React Query / SWR.
 - **Interactive Forward Curve:** Interactive data visualization showing 12-month projections with 95% confidence intervals.
-- **Hedging Simulator:** Dynamic slider allowing procurement managers to adjust purchase volumes (100–5,000 quintals) and simulate exact cost variances against seasonal dips.
+- **Hedging Simulator:** Dynamic slider allowing procurement managers to adjust purchase volumes (100–5,000 quintals) and estimate scenarios against the forecast curve.
 - **Action Approval Workflow:** Procurement executives can review and mark AI recommendations as *Executed* or *Rejected*.
 
 ### 8.2 React Native Field Procurement App
-Implemented in `d:\\Agri\\frontend_examples\\ReactNative_AgriApp.tsx`:
+Implemented in `frontend_examples/ReactNative_AgriApp.tsx`:
 - **Field Officer Resiliency:** Designed for procurement agents operating across Karnataka mandis.
 - **Offline Caching:** Caches the latest forward curve in `AsyncStorage` for seamless offline access in remote rural areas.
 - **Threshold Alerts:** Color-coded badges indicating *BUY DIP* (e.g. February dip) or *PEAK SURGE* (July peak).

@@ -28,7 +28,7 @@ def populate():
     df = pd.read_csv(csv_path)
     df['date'] = pd.to_datetime(df['date'])
     
-    # Mark copy-paste anomaly window
+    # Flag the candidate discontinuity for review; the supplied data does not prove its cause.
     df['is_anomaly'] = (df['date'] >= '2021-06-01') & (df['date'] <= '2023-11-01')
     df['imputed_price'] = df['avg_monthly_price'].astype(float)
     df.loc[df['is_anomaly'], 'imputed_price'] = None
@@ -64,7 +64,7 @@ def populate():
             mae=m_info['mae'],
             rmse=m_info['rmse'],
             mape=m_info['mape'],
-            directional_accuracy=75.0 if is_best else 66.7,
+            directional_accuracy=m_info.get('directional_accuracy', 0.0),
             parameters={"horizon": 12, "feature_lags": [1, 2, 3, 6, 12]},
             artifact_path="ml_pipeline/artifacts/best_model.joblib",
             is_active=is_best
@@ -92,14 +92,19 @@ def populate():
     
     # 4. Generate Strategic Corporate Actions (Answering Questions 4 & 5)
     # Action 1: Forward contracting during February dip
-    feb_forecast = forecast_objs[4] # Month 5: 2026-02-01 (price drops to ~14,442)
+    feb_forecast = forecast_objs[4] # Month 5: 2026-02-01
+    july_forecast = forecast_objs[9] # Month 10: 2026-07-01
+    forecast_spread = max(0.0, july_forecast.predicted_price - feb_forecast.predicted_price)
     CorporateAction.objects.create(
         forecast=feb_forecast,
         action_type='FORWARD_CONTRACT',
         status='RECOMMENDED',
-        trigger_condition='Predicted seasonal price trough in February 2026 (INR 14,442 vs peak INR 16,159)',
-        action_details='Lock in 6-month forward supply agreements with farmer producer organizations (FPOs) and mandi suppliers during the February harvest window to hedge against peak summer surges (INR 16,140 in July).',
-        expected_savings_inr=1717000.0, # (16,159 - 14,442) * 1,000 quintals
+        trigger_condition=(
+            f'Illustrative forecast spread from February to July 2026: '
+            f'INR {forecast_spread:,.2f}/quintal before costs'
+        ),
+        action_details='Evaluate supplier quotes and terms for a February-to-July purchase plan. The forecast spread is not a savings estimate and excludes contract, storage, financing, transport, and quality costs.',
+        expected_savings_inr=0.0,
     )
     
     # Action 2: Warehouse strategic buffer accumulation
@@ -108,19 +113,18 @@ def populate():
         action_type='INVENTORY_BUFFER',
         status='UNDER_REVIEW',
         trigger_condition='Pre-monsoon / pre-summer buffer building opportunity',
-        action_details='Increase warehouse holding capacity at Yeshwanthpur and regional Way2Agri hubs by 35% in Jan-Feb 2026 to accumulate stock before Q2-Q3 price appreciation.',
-        expected_savings_inr=850000.0
+        action_details='Evaluate temporary inventory buffering during the forecast low-price period, subject to validated demand and carrying-cost analysis.',
+        expected_savings_inr=0.0
     )
     
     # Action 3: Dynamic end-product pricing for July 2026 peak
-    july_forecast = forecast_objs[9] # Month 10: 2026-07-01 (price reaches 16,140)
     CorporateAction.objects.create(
         forecast=july_forecast,
         action_type='DYNAMIC_PRICING',
         status='RECOMMENDED',
         trigger_condition='Predicted commodity price peak exceeding INR 16,000 in July-September 2026',
-        action_details='Adjust B2B wholesale and direct-to-retail agribusiness catalog pricing by +8.5% starting June 2026 to safeguard gross processing margins without sacrificing customer retention.',
-        expected_savings_inr=2400000.0
+        action_details='Pilot price adjustments using realized input costs and observed customer demand; the forecast alone does not establish a suitable adjustment percentage or savings amount.',
+        expected_savings_inr=0.0
     )
     print("Created strategic CorporateAction recommendations.")
     print("Database population completed successfully!")

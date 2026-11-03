@@ -47,12 +47,12 @@ r_sub.font.size = Pt(11)
 r_sub.font.bold = True
 r_sub.font.color.rgb = RGBColor(5, 150, 105)
 
-r_main = p_title.add_run("Enterprise Commodity Price Forecasting Engine & Production Architecture\n")
+r_main = p_title.add_run("Commodity Price Forecasting Assignment Prototype & Architecture Examples\n")
 r_main.font.size = Pt(22)
 r_main.font.bold = True
 r_main.font.color.rgb = RGBColor(15, 23, 42)
 
-r_tag = p_title.add_run("Senior Technical Report: Econometric Diagnostics, Stacking Ensembles, Django 5 Core, FastAPI Microservice, Next.js 15 & React Native")
+r_tag = p_title.add_run("Technical Report: Price Forecasting, Django, FastAPI, Next.js & React Native")
 r_tag.font.size = Pt(11)
 r_tag.font.italic = True
 r_tag.font.color.rgb = RGBColor(100, 116, 139)
@@ -60,15 +60,13 @@ r_tag.font.color.rgb = RGBColor(100, 116, 139)
 doc.add_paragraph()
 
 # Executive Metadata Table
-meta_table = doc.add_table(rows=6, cols=2)
+meta_table = doc.add_table(rows=4, cols=2)
 meta_table.alignment = WD_TABLE_ALIGNMENT.CENTER
 meta_data = [
-    ("Candidate Role", "AI/ML Developer (Senior Technical Screening)"),
+    ("Assessment", "AI/ML Developer screening assignment"),
     ("Target Organization", "Way2Agribusiness India Pvt Ltd"),
-    ("Workstation Location", "Yeshwanthpur Office, Bengaluru, Karnataka"),
     ("Tech Stack Assessed", "AI/ML (Time Series), Django 5, FastAPI, Next.js 15, React Native"),
-    ("Submission Channels", "WhatsApp (+91 9449004956) & Email (way2agriintelai@gmail.com)"),
-    ("GitHub Repository", "https://github.com/gamepatt78/way2agri-price-forecasting-engine")
+    ("Project Type", "Assignment-scale prototype and architecture examples")
 ]
 
 for i, (k, v) in enumerate(meta_data):
@@ -90,18 +88,17 @@ doc.add_paragraph(
     "In agricultural supply chains across South India—particularly Karnataka's APMC mandi ecosystem—procurement cost "
     "volatility is the primary determinant of operating margins. Traditional agribusiness procurement operates reactively "
     "on the spot market, exposing processing facilities to severe supply-side shocks.\n\n"
-    "This report presents an end-to-end, production-grade forecasting engine and microservice architecture developed "
+    "This report presents an assignment-scale forecasting prototype and microservice architecture example developed "
     "to forecast monthly commodity prices for the next 12 operating months (October 2025 to September 2026). "
-    "The solution combines econometric diagnostics, a Stacking Hybrid Ensemble (SARIMAX + XGBoost), an enterprise Django 5 "
-    "transactional backend, a high-throughput FastAPI inference microservice (<10ms latency), a Next.js 15 hedging dashboard, "
+    "The solution combines econometric diagnostics, a 50/50 SARIMAX-XGBoost forecast blend, a Django 5 "
+    "backend example, a FastAPI inference microservice example, a Next.js 15 hedging dashboard, "
     "and an offline-first React Native mobile client for mandi field officers."
 )
 
 add_callout(
-    "The champion Stacking Hybrid Ensemble achieved a 9.43% MAPE on an out-of-sample 12-month walk-forward holdout test. "
-    "The 12-month forward curve projects a sharp seasonal dip in February 2026 (INR 14,442/Qtl) followed by an aggressive summer "
-    "rally to INR 16,140/Qtl in July 2026. A structured FPO forward contracting program executed during the February trough is "
-    "projected to yield INR 49.67 Lakhs in procurement cost avoidance.",
+    "On one 12-month holdout, XGBoost achieved 9.33% MAPE and the 50/50 hybrid blend achieved 9.43%; the blend is used for the saved "
+    "forward forecast but did not win the holdout. The forecast's February 2026 point is INR 14,442.23/Qtl and July 2026 is "
+    "INR 16,140.03/Qtl. Financial benefits from procurement actions are illustrative and depend on realized prices and costs.",
     title="EXECUTIVE BOTTOM LINE"
 )
 
@@ -113,14 +110,10 @@ doc.add_paragraph(
     "However, diagnostic profiling of month-over-month differences revealed two severe disruptions:\n"
     "• In June 2021, reported prices plummeted from INR 10,863 to INR 5,070 (-53.3%) in 30 days.\n"
     "• In December 2023, reported prices leaped from INR 8,400 to INR 16,163 (+92.4%).\n\n"
-    "Mathematical Verification of Duplication Anomaly:\n"
-    "A sliding cross-correlation confirmed that the 30-month window from June 2021 to November 2023 is an EXACT 100% "
-    "numerical duplicate of the historical slice from October 2007 to August 2010. This frequently occurs when mandi collection "
-    "blackouts (e.g., during COVID-19 lockdowns) lead to historical blocks being mistakenly pasted into empty spreadsheet cells, "
-    "or represents an injected benchmark test by Way2Agribusiness reviewers.\n\n"
-    "Statistical Treatment:\n"
-    "Rather than training on corrupted data, we flagged all 30 anomalous records and applied time-weighted linear interpolation "
-    "connecting May 2021 (INR 10,863) to December 2023 (INR 16,163). This restored seasonal integrity and preserved true macroeconomic inflation."
+    "Comparison with the same-length historical window (October 2007 through March 2010) found that 11 of the 30 values differ; "
+    "a scan found no exact matching 30-month window in the supplied series. The cause is unknown and should be checked against primary "
+    "source records. For sensitivity analysis, the notebook flags the period and interpolates between May 2021 (INR 10,863) and "
+    "December 2023 (INR 16,163), retaining the raw values. This is a provisional modeling scenario, not a confirmed correction."
 )
 
 # Section 3: Econometric Diagnostics
@@ -132,11 +125,11 @@ doc.add_paragraph(
 )
 
 # Section 4: Model Benchmarking
-doc.add_heading("4. Questions 2 & 3: Model Architecture & Walk-Forward Benchmark", level=1)
+doc.add_heading("4. Questions 2 & 3: Model Architecture & Single-Holdout Benchmark", level=1)
 doc.add_paragraph(
     "To capture both 12-month annual crop seasonality and non-linear macroeconomic regime shifts, we engineered 15 features "
     "(lags t-1, t-2, t-3, t-6, t-12; rolling statistics 3, 6, 12; and cyclical sine/cosine calendar encodings). Models were "
-    "evaluated on a strict 12-month holdout test window (October 2024 to September 2025):"
+    "evaluated on one 12-month holdout test window (October 2024 to September 2025), not repeated rolling-origin validation:"
 )
 
 res_table = doc.add_table(rows=7, cols=5)
@@ -149,11 +142,11 @@ for j, h in enumerate(headers):
 
 results_data = [
     ("Baseline", "Seasonal Naive (Lag 12)", "1,723.51", "1,956.70", "13.14%"),
-    ("Tree Ensemble", "Random Forest Regressor", "1,506.10", "1,970.89", "12.05%"),
-    ("State-Space", "SARIMAX(1,1,1)x(1,1,1)[12]", "1,223.50", "1,606.19", "9.73%"),
-    ("Exponential Smoothing", "Holt-Winters (Additive)", "1,223.06", "1,580.40", "9.65%"),
+    ("Tree Ensemble", "Random Forest Regressor", "1,502.83", "1,967.29", "12.02%"),
+    ("State-Space", "SARIMAX(1,1,1)x(1,1,1)[12]", "1,223.49", "1,606.19", "9.73%"),
+    ("Exponential Smoothing", "Holt-Winters (Additive)", "1,243.12", "1,610.39", "9.87%"),
     ("Gradient Boosting", "XGBoost Regressor", "1,186.72", "1,568.62", "9.33%"),
-    ("Ensemble (Champion)", "Hybrid Stacking (SARIMAX + XGB)", "1,190.16", "1,572.02", "9.43%")
+    ("Forecast Candidate", "50/50 Blend (SARIMAX + XGB)", "1,190.16", "1,572.02", "9.43%")
 ]
 
 for i, row in enumerate(results_data):
@@ -167,11 +160,15 @@ for i, row in enumerate(results_data):
             set_cell_background(c, "F8FAFC")
 
 doc.add_paragraph()
+doc.add_paragraph(
+    "XGBoost had the lowest error on this holdout. The hybrid blend is used for the saved forecast but did not outperform XGBoost; "
+    "additional rolling-origin validation is needed before production model promotion."
+)
 
 # Section 5: Official 12-Month Out-of-Sample Forward Curve
 doc.add_heading("5. Official 12-Month Out-of-Sample Price Forecast (Oct 2025 – Sep 2026)", level=1)
 doc.add_paragraph(
-    "Using full historical retraining, the production Stacking Hybrid Ensemble projected the following forward curve:"
+    "Using full historical retraining, the 50/50 SARIMAX-XGBoost forecast blend projected the following curve with approximate 95% prediction intervals:"
 )
 
 fc_table = doc.add_table(rows=13, cols=6)
@@ -216,40 +213,35 @@ doc.add_paragraph()
 doc.add_heading("6. Questions 4 & 5: Corporate Strategic Responses & Effectiveness Measurement", level=1)
 doc.add_paragraph(
     "Algorithmic Corporate Interventions:\n"
-    "1. Bilateral FPO Forward Contracting (Jan–Feb 2026): Lock in 6-month forward contracts at INR 14,500–14,750/Qtl "
-    "with Karnataka Farmer Producer Organizations during the February dip, yielding INR 16.40 Lakhs in cost avoidance vs. July spot buying.\n"
-    "2. Yeshwanthpur Hub Strategic Warehouse Buffering (Feb 2026): Expand warehouse inventory holding from 30 to 75 days, "
-    "securing INR 8.84 Lakhs in net net savings after accounting for warehousing, insurance, and financing costs.\n"
-    "3. Dynamic Catalog Pricing (May–June 2026): Increment online B2B/B2C catalog pricing by +8.5% ahead of peak input inflation, "
-    "defending the company's 22% gross processing margin and preserving INR 24.00 Lakhs.\n\n"
+    "1. Evaluate FPO forward contracts against supplier quotes, delivery terms, and quality requirements. The February-to-July forecast spread is INR 1,697.80/Qtl (INR 16.98 lakh per 1,000 Qtl) before contract and carrying costs; this is not guaranteed savings.\n"
+    "2. Evaluate warehouse buffering against documented insurance, handling, spoilage, and financing costs before changing stock targets.\n"
+    "3. Review catalog pricing against realized input costs, customer demand, and contractual constraints; the forecast alone does not quantify margin protection.\n\n"
     "Causal Effectiveness Determination:\n"
     "• Procurement Cost Variance (PCV): Net monetary difference between actual spot outlay and contracted execution.\n"
-    "• Difference-in-Differences (DiD) Causal Estimator: Compares treated commodity lines against unhedged spot control lines. "
-    "A statistically significant negative delta (p < 0.01) provides mathematical proof of model effectiveness."
+    "• Difference-in-Differences (DiD) Estimator: Compares treated commodity lines against unhedged spot control lines. "
+    "A negative estimate is not proof by itself; assess parallel trends, confounders, and uncertainty."
 )
 
-# Section 7: Production Architecture
-doc.add_heading("7. Questions 6 & 7: Production Architecture (Django 5 & FastAPI)", level=1)
+# Section 7: Architecture Proposal
+doc.add_heading("7. Questions 6 & 7: Architecture Proposal (Django 5 & FastAPI)", level=1)
 doc.add_paragraph(
-    "Decoupled Microservice Architecture:\n"
-    "• Django 5 Transactional Core (Port 8000): Manages PostgreSQL/SQLite database models (CommodityPrice, ModelRegistry, "
-    "PriceForecast, CorporateAction), DRF API viewsets, Celery Beat scheduled monthly retraining, and admin auditing.\n"
-    "• FastAPI High-Throughput Microservice (Port 8001): In-memory model caching, asynchronous execution, sub-10ms response "
-    "latency, Pydantic type validation, and automatic OpenAPI documentation at /docs.\n"
-    "• Redis 7.0 Memory Tier: 24-hour cache for forward curves and message broker for Celery workers."
+    "Proposed decoupled service architecture (deployment behavior and performance are unvalidated):\n"
+    "• Django example: ORM models, REST Framework viewsets, and admin configuration.\n"
+    "• FastAPI example: In-memory model loading, Pydantic validation, and OpenAPI documentation; response latency requires deployment benchmarking.\n"
+    "• Redis caching and scheduled retraining are design options, not verified production services."
 )
 
 # Section 8: Frontend Client Integration
 doc.add_heading("8. Question 8: Frontend Integration (Next.js 15 & React Native)", level=1)
 doc.add_paragraph(
     "• Next.js 15 Web Dashboard (NextJs_AgriDashboard.tsx): Features real-time forward curves, KPI metric cards, an interactive "
-    "Hedging Volume Simulator (100–5,000 Quintals) computing cost savings dynamically, and corporate action approval buttons.\n"
+    "Hedging Volume Simulator (100–5,000 Quintals) estimating forecast-price scenarios, and corporate action approval buttons.\n"
     "• React Native Offline Mobile App (ReactNative_AgriApp.tsx): Designed for field procurement officers in rural Karnataka mandis; "
     "implements local AsyncStorage caching for zero-downtime offline access and automated BUY DIP alert banners."
 )
 
-# Section 9: Production Monitoring & MLOps
-doc.add_heading("9. Question 9: Production Monitoring, Drift Handling & Continuous Retraining", level=1)
+# Section 9: Monitoring & MLOps Proposal
+doc.add_heading("9. Question 9: Monitoring, Drift Handling & Retraining Proposal", level=1)
 doc.add_paragraph(
     "MLOps Governance Pipeline:\n"
     "1. Population Stability Index (PSI): Computed monthly. PSI < 0.1 indicates stability; PSI >= 0.20 triggers automatic retraining.\n"
@@ -259,17 +251,12 @@ doc.add_paragraph(
 )
 
 # Section 10: Submission Verification
-doc.add_heading("10. Submission Verification & Candidate Credentials", level=1)
+doc.add_heading("10. Supporting Artifacts", level=1)
 doc.add_paragraph(
-    "The complete assignment package has been prepared and committed to GitHub:\n"
-    "• Repository: https://github.com/gamepatt78/way2agri-price-forecasting-engine\n"
+    "Project artifacts:\n"
     "• Executed Jupyter Notebook: notebooks/AgriPrice_Forecasting_Way2Agri.ipynb\n"
     "• Official Word Document: docs/Way2Agribusiness_Assignment_Report.docx\n"
-    "• HTML Report: docs/AgriPrice_Forecasting_Way2Agri.html\n\n"
-    "Submitted To:\n"
-    "• WhatsApp: +91 9449004956 (Dr. Prasanna, Way2Agribusiness India Pvt Ltd)\n"
-    "• Email: way2agriintelai@gmail.com\n"
-    "• Workstation: Yeshwanthpur Office, Bengaluru, Karnataka"
+    "• HTML Report: docs/AgriPrice_Forecasting_Way2Agri.html"
 )
 
 doc_path = os.path.join(os.path.dirname(__file__), "..", "docs", "Way2Agribusiness_Assignment_Report.docx")

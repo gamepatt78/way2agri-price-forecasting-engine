@@ -3,7 +3,7 @@ Production ML Pipeline for Agri Price Forecasting
 - Data Cleaning, Anomaly Identification & Treatment
 - Feature Engineering (Lags, Rolling Stats, Cyclical Calendar Features)
 - Multi-Model Benchmarking (SARIMAX, Holt-Winters, Random Forest, XGBoost, Ensemble)
-- 12-Month Walk-Forward Holdout Evaluation (MAE, RMSE, MAPE, Directional Accuracy)
+- 12-Month Holdout Evaluation (MAE, RMSE, MAPE, Directional Accuracy)
 - 12-Month Forward Price Projection (2025-10 to 2026-09) with 95% Confidence Intervals
 - Artifact Serialization & Django DB Ingestion
 """
@@ -46,8 +46,7 @@ def load_and_clean_data():
     expected_dates = pd.date_range(start=df['date'].min(), end=df['date'].max(), freq='MS')
     assert len(expected_dates) == len(df), "Irregular time series frequency detected!"
     
-    # 2. Flag anomalous copy-paste window
-    # 2021-06-01 to 2023-11-01 is an exact 30-month copy of 2007-10 to 2010-08
+    # Flag the candidate discontinuity for source verification and sensitivity analysis.
     df['is_anomaly'] = False
     anomaly_mask = (df['date'] >= '2021-06-01') & (df['date'] <= '2023-11-01')
     df.loc[anomaly_mask, 'is_anomaly'] = True
@@ -246,10 +245,28 @@ def run_pipeline():
         'mape': round(mape_ens, 2),
         'predictions': y_pred_ens.tolist()
     }
+
+    previous_test_prices = np.concatenate(([y_train[-1]], y_test[:-1]))
+    predictions_by_model = {
+        'Seasonal Naive': y_pred_naive,
+        'Holt-Winters': y_pred_hw,
+        'SARIMAX': y_pred_sarimax,
+        'Random Forest': y_pred_rf,
+        'XGBoost': y_pred_xgb,
+        'Hybrid Ensemble': y_pred_ens,
+    }
+    for name, predictions in predictions_by_model.items():
+        models_results[name]['directional_accuracy'] = round(
+            directional_accuracy(y_test, predictions, previous_test_prices), 2
+        )
     
     print("\n=== Validation Results on 12-Month Holdout ===")
     for name, res in models_results.items():
-        print(f"{name:18s} | MAE: INR {res['mae']:8.2f} | RMSE: INR {res['rmse']:8.2f} | MAPE: {res['mape']:6.2f}%")
+        print(
+            f"{name:18s} | MAE: INR {res['mae']:8.2f} | "
+            f"RMSE: INR {res['rmse']:8.2f} | MAPE: {res['mape']:6.2f}% | "
+            f"Direction: {res['directional_accuracy']:5.1f}%"
+        )
         
     # -------------------------------------------------------------
     # Full Model Training & 12-Month Out-of-Sample Future Forecast (2025-10 to 2026-09)
@@ -311,7 +328,7 @@ def run_pipeline():
     )
     
     metadata = {
-        "model_name": "SARIMAX-XGBoost Stacking Hybrid",
+        "model_name": "SARIMAX-XGBoost 50/50 Hybrid Blend",
         "algorithm": "Blended Statistical & Gradient Boosted Regressor",
         "validation_metrics": models_results,
         "latest_date": df['date'].max().strftime("%Y-%m-%d"),
